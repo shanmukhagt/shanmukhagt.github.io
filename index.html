@@ -6,21 +6,21 @@
 <title>B-Tree Index Visualizer</title>
 <style>
 :root {
-  --bg: #001E2B;
-  --surface: #0D3330;
-  --surface2: #0A2A27;
-  --accent: #00ED64;
-  --accent-dim: #00684A;
-  --accent-dark: #023430;
-  --text: #E8EDEB;
-  --text-dim: #89979B;
-  --border: #1C4D3A;
-  --red: #FF6B6B;
-  --yellow: #FFD700;
-  --orange: #FF8C00;
-  --node-internal: #0D3330;
-  --node-leaf: #0A2A27;
-  --ptr-bg: #001826;
+  --bg: #08090F;
+  --surface: #0F1120;
+  --surface2: #0B0C1A;
+  --accent: #8B5CF6;
+  --accent-dim: #6D28D9;
+  --accent-dark: #160933;
+  --text: #EDE9FE;
+  --text-dim: #6B7097;
+  --border: #1C1F38;
+  --red: #F43F5E;
+  --yellow: #F59E0B;
+  --orange: #F97316;
+  --node-internal: #0F1120;
+  --node-leaf: #0B0C1A;
+  --ptr-bg: #06070D;
   --font: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
@@ -42,19 +42,28 @@ body {
   display: flex;
   align-items: center;
   padding: 10px 20px;
-  background: #000F17;
+  background: linear-gradient(90deg, #060710 0%, #0C0D20 100%);
   border-bottom: 1px solid var(--border);
   gap: 16px;
   flex-shrink: 0;
   z-index: 10;
+  box-shadow: 0 1px 0 rgba(139,92,246,0.12);
 }
 #header h1 {
   font-size: 15px;
-  color: var(--accent);
   letter-spacing: 0.5px;
   white-space: nowrap;
+  background: linear-gradient(135deg, #C4B5FD 0%, #8B5CF6 60%, #6D28D9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
-#header h1 span { color: var(--text-dim); }
+#header h1 span {
+  background: linear-gradient(135deg, #A78BFA, #7C3AED);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
 #info-bar {
   flex: 1;
@@ -94,7 +103,7 @@ body {
 #panel {
   width: 280px;
   flex-shrink: 0;
-  background: #000F17;
+  background: linear-gradient(180deg, #060710 0%, #09091C 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -142,7 +151,7 @@ body {
   outline: none;
   min-width: 0;
 }
-.field-row input.idx-field-input:focus { border-color: var(--accent-dim); }
+.field-row input.idx-field-input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 2px rgba(109,40,217,0.15); }
 .field-row select {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -158,7 +167,7 @@ body {
 .idx-dir-input  { min-width: 38px; }
 .field-row button.remove-field {
   background: none;
-  border: 1px solid #333;
+  border: 1px solid #252040;
   color: var(--text-dim);
   cursor: pointer;
   border-radius: 4px;
@@ -192,46 +201,52 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
-.tb-string  { background:#0D2235; color:#5BB8FF; border:1px solid #1a4060; }
-.tb-number  { background:#1a2d0d; color:#7ed957; border:1px solid #2d5010; }
-.tb-float   { background:#1a2d0d; color:#a8e050; border:1px solid #2d5010; }
-.tb-boolean { background:#2d1a3a; color:#c97eff; border:1px solid #4a2060; }
-.tb-date    { background:#2a1a0a; color:#ffb347; border:1px solid #553010; }
-.tb-email   { background:#0d2020; color:#40d0c0; border:1px solid #104040; }
-.tb-enum    { background:#2a1a1a; color:#ff8888; border:1px solid #552020; }
+.tb-string  { background:#0D1535; color:#7EB8FF; border:1px solid #1a2E70; }
+.tb-number  { background:#1a142e; color:#a78bfa; border:1px solid #352560; }
+.tb-float   { background:#1a142e; color:#c4b5fd; border:1px solid #352560; }
+.tb-boolean { background:#2a0D35; color:#e879f9; border:1px solid #601260; }
+.tb-date    { background:#2a1500; color:#fbbf24; border:1px solid #604010; }
+.tb-email   { background:#0d1a2e; color:#38bdf8; border:1px solid #0e3060; }
+.tb-enum    { background:#2a0a18; color:#fb7185; border:1px solid #601030; }
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: var(--font);
   font-size: 12px;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.15s;
+  transition: all 0.18s;
   white-space: nowrap;
 }
 .btn-primary {
-  background: var(--accent);
-  color: #001E2B;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  color: #EDE9FE;
   font-weight: 700;
+  border-color: #5B21B6;
+  box-shadow: 0 2px 10px rgba(109,40,217,0.35);
 }
-.btn-primary:hover { background: #00ff6f; }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary:hover {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  box-shadow: 0 2px 14px rgba(139,92,246,0.45);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-secondary {
   background: transparent;
   border-color: var(--border);
   color: var(--text-dim);
 }
-.btn-secondary:hover { border-color: var(--accent-dim); color: var(--accent); }
+.btn-secondary:hover { border-color: var(--accent-dim); color: var(--accent); background: rgba(139,92,246,0.06); }
 .btn-danger {
   background: transparent;
-  border-color: #553;
+  border-color: #2A1A28;
   color: var(--text-dim);
 }
-.btn-danger:hover { border-color: var(--red); color: var(--red); }
+.btn-danger:hover { border-color: var(--red); color: var(--red); background: rgba(244,63,94,0.06); }
 
 .btn-row {
   display: flex;
@@ -262,7 +277,7 @@ body {
   font-size: 12px;
   outline: none;
 }
-.doc-field-row input:focus { border-color: var(--accent-dim); }
+.doc-field-row input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 2px rgba(109,40,217,0.12); }
 .doc-field-row .oid-display {
   font-size: 10px;
   color: var(--text-dim);
@@ -328,8 +343,12 @@ body {
   position: relative;
   cursor: grab;
   background:
-    radial-gradient(ellipse at 20% 20%, #001A26 0%, transparent 60%),
+    linear-gradient(rgba(139,92,246,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139,92,246,0.022) 1px, transparent 1px),
+    radial-gradient(ellipse at 25% 30%, rgba(109,40,217,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 70%, rgba(76,29,149,0.05) 0%, transparent 50%),
     var(--bg);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%, 100% 100%;
 }
 #svg-wrap:active { cursor: grabbing; }
 
@@ -356,7 +375,7 @@ body {
 }
 @keyframes keyInsert {
   0%   { fill: var(--accent); }
-  60%  { fill: #00ff88; }
+  60%  { fill: #C4B5FD; }
   100% { fill: var(--node-leaf); }
 }
 @keyframes edgePulse {
@@ -370,7 +389,7 @@ body {
   display: flex;
   gap: 16px;
   padding: 8px 16px;
-  background: #000F17;
+  background: linear-gradient(90deg, #060710 0%, #0C0D20 100%);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   font-size: 11px;
@@ -454,7 +473,7 @@ body {
   border-radius: 3px;
   font-family: var(--font);
 }
-.sff-index-note.uses-index { background:#002A18; color:#00B84A; }
+.sff-index-note.uses-index { background:#0E0A28; color:#A78BFA; }
 .sff-index-note.full-scan  { background:#1a1000; color:#aa8800; }
 
 /* ── Extra (non-indexed) field rows ────────────────────── */
@@ -515,7 +534,7 @@ body {
 .scan-result-entry {
   padding: 4px 8px;
   border-radius: 3px;
-  background: #002A18;
+  background: var(--accent-dark);
   border-left: 2px solid var(--accent);
   font-size: 11px;
   color: var(--accent);
@@ -529,9 +548,10 @@ body {
 .scan-result-entry .sr-rid { color: var(--text-dim); font-size: 10px; }
 
 /* Scan legend swatches */
-.ls-scan-match  { background: #003D20; border-color: #00ED64; }
-.ls-scan-cursor { background: #1a3050; border-color: #5BB8FF; }
-.ls-scan-prune  { background: #1a1a1a; border-color: #444; }
+.ls-scan-match  { background: #160933; border-color: #8B5CF6; box-shadow: 0 0 0 1.5px #8B5CF6; }
+.ls-scan-cursor { background: #0F1F3E; border-color: #60A5FA; }
+.ls-scan-prune  { background: #111118; border-color: #2C2840; }
+.ls-scan-miss   { background: #07080E; border-color: #1C1F38; opacity: 0.35; }
 
 /* SVG scan animations */
 @keyframes scanPulse {
@@ -544,9 +564,13 @@ body {
   50%      { fill-opacity: 0.3; }
 }
 @keyframes matchGlow {
-  0%   { fill: #001E2B; }
-  40%  { fill: #003D20; }
-  100% { fill: #002A18; }
+  0%   { fill: #08090F; }
+  35%  { fill: #2D1670; }
+  100% { fill: #160933; }
+}
+@keyframes missedFade {
+  from { opacity: 0.9; }
+  to   { opacity: 0.18; }
 }
 @keyframes pruneIn {
   from { opacity: 1; }
@@ -612,7 +636,7 @@ body {
   position: fixed;
   display: none;
   z-index: 1000;
-  background: #000F17;
+  background: #0C0D1F;
   border: 1px solid var(--accent-dim);
   border-radius: 7px;
   padding: 10px 13px;
@@ -674,7 +698,7 @@ body {
   padding-top: 5px;
   border-top: 1px solid var(--border);
   font-size: 9px;
-  color: #405050;
+  color: #40405A;
   word-break: break-all;
   line-height: 1.4;
 }
@@ -683,7 +707,7 @@ body {
   cursor: crosshair;
 }
 .key-hover-zone:hover {
-  fill: rgba(0, 237, 100, 0.06);
+  fill: rgba(139, 92, 246, 0.1);
 }
 
 /* Scrollbar styling */
@@ -757,10 +781,7 @@ body {
     <!-- Insert Document -->
     <div class="panel-section" id="insert-section">
       <h2>Insert Document</h2>
-      <div class="doc-field-row">
-        <label>_id (ObjectId)</label>
-        <div class="oid-display" id="oid-preview">—</div>
-      </div>
+      <div id="oid-preview" data-oid="" style="display:none"></div>
       <div id="doc-fields"></div>
       <!-- Extra (non-indexed) fields -->
       <div id="doc-extra-section" style="margin-top:8px;display:none">
@@ -844,24 +865,24 @@ body {
     <div id="svg-wrap">
       <div id="empty-state">
         <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-          <rect x="8" y="24" width="48" height="16" rx="4" stroke="#00ED64" stroke-width="2"/>
-          <rect x="4" y="8" width="24" height="12" rx="3" stroke="#00ED64" stroke-width="1.5"/>
-          <rect x="36" y="8" width="24" height="12" rx="3" stroke="#00ED64" stroke-width="1.5"/>
-          <rect x="4" y="44" width="16" height="12" rx="3" stroke="#00ED64" stroke-width="1.5"/>
-          <rect x="24" y="44" width="16" height="12" rx="3" stroke="#00ED64" stroke-width="1.5"/>
-          <rect x="44" y="44" width="16" height="12" rx="3" stroke="#00ED64" stroke-width="1.5"/>
-          <line x1="16" y1="20" x2="16" y2="8" stroke="#00ED64" stroke-width="1.5" opacity="0.5"/>
-          <line x1="48" y1="20" x2="48" y2="8" stroke="#00ED64" stroke-width="1.5" opacity="0.5"/>
+          <rect x="8" y="24" width="48" height="16" rx="4" stroke="#8B5CF6" stroke-width="2"/>
+          <rect x="4" y="8" width="24" height="12" rx="3" stroke="#6D28D9" stroke-width="1.5"/>
+          <rect x="36" y="8" width="24" height="12" rx="3" stroke="#6D28D9" stroke-width="1.5"/>
+          <rect x="4" y="44" width="16" height="12" rx="3" stroke="#6D28D9" stroke-width="1.5"/>
+          <rect x="24" y="44" width="16" height="12" rx="3" stroke="#6D28D9" stroke-width="1.5"/>
+          <rect x="44" y="44" width="16" height="12" rx="3" stroke="#6D28D9" stroke-width="1.5"/>
+          <line x1="16" y1="20" x2="16" y2="8" stroke="#8B5CF6" stroke-width="1.5" opacity="0.5"/>
+          <line x1="48" y1="20" x2="48" y2="8" stroke="#8B5CF6" stroke-width="1.5" opacity="0.5"/>
         </svg>
         <p>Create an index to start visualizing</p>
       </div>
       <svg id="btree-svg" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#1C4D3A"/>
+            <path d="M0,0 L0,6 L8,3 z" fill="#1C1F38"/>
           </marker>
           <marker id="arrow-active" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#00ED64"/>
+            <path d="M0,0 L0,6 L8,3 z" fill="#8B5CF6"/>
           </marker>
           <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur"/>
@@ -878,6 +899,7 @@ body {
       <div class="legend-item"><div class="legend-swatch ls-split"></div>Split</div>
       <div class="legend-item"><div class="legend-swatch ls-insert"></div>Inserted</div>
       <div class="legend-item"><div class="legend-swatch ls-scan-match"></div>Match</div>
+      <div class="legend-item"><div class="legend-swatch ls-scan-miss"></div>No match</div>
       <div class="legend-item"><div class="legend-swatch ls-scan-cursor"></div>Cursor</div>
       <div class="legend-item"><div class="legend-swatch ls-scan-prune"></div>Pruned</div>
     </div>
@@ -1205,10 +1227,10 @@ function renderTree(tree, highlightState = {}) {
 
       const path = makeSvgEl('path', {
         d: `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`,
-        stroke: isActive ? '#00ED64' : '#1C4D3A',
+        stroke: isActive ? '#8B5CF6' : '#1C1F38',
         'stroke-width': isActive ? '2.5' : '1.5',
         fill: 'none',
-        'stroke-opacity': isActive ? '1' : '0.6',
+        'stroke-opacity': isActive ? '1' : '0.55',
         'marker-end': isActive ? 'url(#arrow-active)' : 'url(#arrow)',
         class: isActive ? 'edge-path edge-active' : 'edge-path',
       });
@@ -1228,12 +1250,12 @@ function renderTree(tree, highlightState = {}) {
     const isInsertNode = hs.insertNode === node.id;
     const isSplitNew = hs.splitNew === node.id;
 
-    let strokeColor = node.isLeaf ? '#00684A' : '#1C4D3A';
+    let strokeColor = node.isLeaf ? '#5B3FD0' : '#1C1F38';
     let strokeW = '1.5';
-    if (isVisiting)   { strokeColor = '#FFD700'; strokeW = '2.5'; }
-    if (isPreSplit)   { strokeColor = '#FF6B6B'; strokeW = '2.5'; }
-    if (isSplitNew)   { strokeColor = '#00ED64'; strokeW = '2.5'; }
-    if (isInsertNode) { strokeColor = '#00ED64'; strokeW = '2.5'; }
+    if (isVisiting)   { strokeColor = '#F59E0B'; strokeW = '2.5'; }
+    if (isPreSplit)   { strokeColor = '#F43F5E'; strokeW = '2.5'; }
+    if (isSplitNew)   { strokeColor = '#8B5CF6'; strokeW = '2.5'; }
+    if (isInsertNode) { strokeColor = '#8B5CF6'; strokeW = '2.5'; }
 
     const ng = makeSvgEl('g', {
       class: 'btree-node' + (isNew ? ' node-enter' : ''),
@@ -1243,7 +1265,7 @@ function renderTree(tree, highlightState = {}) {
     // Node background
     ng.appendChild(makeSvgEl('rect', {
       x: pos.x, y: pos.y, width: pos.w, height: NODE_H, rx: '5',
-      fill: node.isLeaf ? '#0A2A27' : '#0D3330',
+      fill: node.isLeaf ? '#0B0C1A' : '#0F1120',
       stroke: strokeColor,
       'stroke-width': strokeW,
       class: 'node-body',
@@ -1254,7 +1276,7 @@ function renderTree(tree, highlightState = {}) {
     const label = node.isLeaf ? 'LEAF' : 'INTERNAL';
     ng.appendChild(makeSvgEl('text', {
       x: pos.x + pos.w / 2, y: pos.y - 5,
-      'text-anchor': 'middle', fill: node.isLeaf ? '#00684A' : '#2C5F52',
+      'text-anchor': 'middle', fill: node.isLeaf ? '#5B3FD0' : '#374165',
       'font-size': '9', 'font-family': 'monospace', 'letter-spacing': '1',
     })).textContent = label;
 
@@ -1264,11 +1286,11 @@ function renderTree(tree, highlightState = {}) {
         const px = pos.x + i * (PTR_W + kw);
         ng.appendChild(makeSvgEl('rect', {
           x: px + 1, y: pos.y + 1, width: PTR_W - 2, height: NODE_H - 2, rx: '2',
-          fill: '#001826', opacity: '0.8',
+          fill: '#06070D', opacity: '0.9',
         }));
         ng.appendChild(makeSvgEl('circle', {
           cx: px + PTR_W / 2, cy: pos.y + NODE_H / 2, r: '3',
-          fill: '#00684A',
+          fill: '#5B3FD0',
         }));
       }
     }
@@ -1284,7 +1306,7 @@ function renderTree(tree, highlightState = {}) {
       // Key cell background
       ng.appendChild(makeSvgEl('rect', {
         x: kx + 1, y: pos.y + 1, width: kw - 2, height: NODE_H - 2, rx: '2',
-        fill: isInsertKey ? '#003D20' : (node.isLeaf ? '#0A2A27' : '#0D3330'),
+        fill: isInsertKey ? '#160933' : (node.isLeaf ? '#0B0C1A' : '#0F1120'),
         class: isInsertKey ? 'key-cell-rect key-cell-insert' : 'key-cell-rect',
       }));
 
@@ -1293,7 +1315,7 @@ function renderTree(tree, highlightState = {}) {
         const dx = node.isLeaf ? pos.x + ki * kw : pos.x + PTR_W + ki * (PTR_W + kw);
         ng.appendChild(makeSvgEl('line', {
           x1: dx, y1: pos.y + 4, x2: dx, y2: pos.y + NODE_H - 4,
-          stroke: '#1C4D3A', 'stroke-width': '1',
+          stroke: '#1C1F38', 'stroke-width': '1',
         }));
       }
 
@@ -1307,7 +1329,7 @@ function renderTree(tree, highlightState = {}) {
           x: kx + kw / 2,
           y: node.isLeaf ? pos.y + (NODE_H / 2) - 8 : pos.y + NODE_H / 2 + 5,
           'text-anchor': 'middle',
-          fill: '#00ED64', 'font-size': '12', 'font-family': 'monospace',
+          fill: '#A78BFA', 'font-size': '12', 'font-family': 'monospace',
           'font-weight': '600',
         });
         txt.textContent = vals[0] === null ? 'null' : String(vals[0]);
@@ -1321,7 +1343,7 @@ function renderTree(tree, highlightState = {}) {
             x: kx + kw / 2,
             y: startY + fi * step + 12,
             'text-anchor': 'middle',
-            fill: fi === 0 ? '#00ED64' : '#00B84A',
+            fill: fi === 0 ? '#A78BFA' : '#7C5CD8',
             'font-size': fi === 0 ? '11' : '10',
             'font-family': 'monospace',
           });
@@ -1332,7 +1354,7 @@ function renderTree(tree, highlightState = {}) {
             x: kx + kw / 2,
             y: startY + fi * step + 3,
             'text-anchor': 'middle',
-            fill: '#2C5F52', 'font-size': '8', 'font-family': 'monospace',
+            fill: '#3D3F62', 'font-size': '8', 'font-family': 'monospace',
           });
           flbl.textContent = tree.indexFields[fi];
           ng.appendChild(flbl);
@@ -1346,7 +1368,7 @@ function renderTree(tree, highlightState = {}) {
           x: kx + kw / 2,
           y: pos.y + NODE_H - 8,
           'text-anchor': 'middle',
-          fill: '#2C7A5C', 'font-size': '9', 'font-family': 'monospace',
+          fill: '#4A4B70', 'font-size': '9', 'font-family': 'monospace',
         });
         ridTxt.textContent = shortId(rid);
         const titleEl = document.createElementNS(SVG_NS, 'title');
@@ -1358,7 +1380,7 @@ function renderTree(tree, highlightState = {}) {
         ng.appendChild(makeSvgEl('line', {
           x1: kx + 4, y1: pos.y + NODE_H - 17,
           x2: kx + kw - 4, y2: pos.y + NODE_H - 17,
-          stroke: '#1C4D3A', 'stroke-width': '0.5', opacity: '0.6',
+          stroke: '#1C1F38', 'stroke-width': '0.5', opacity: '0.7',
         }));
       }
     });
@@ -1717,7 +1739,6 @@ function parseFieldValue(fieldName, rawVal) {
 
 function genOid() {
   const oid = genObjectId();
-  document.getElementById('oid-preview').textContent = shortId(oid) + ' (ObjectId)';
   document.getElementById('oid-preview').dataset.oid = oid;
   return oid;
 }
@@ -2519,7 +2540,7 @@ function updatePrefixHint() {
 
   hint.style.display = '';
   if (hasLeading) {
-    hint.style.background = '#002A18'; hint.style.borderColor = '#00684A'; hint.style.color = '#00B84A';
+    hint.style.background = '#100830'; hint.style.borderColor = '#5B21B6'; hint.style.color = '#A78BFA';
     hint.textContent = `⚡ Leading field filter active — B-tree will prune non-matching subtrees.`
       + (hasExtra ? ' Non-indexed fields applied as post-filter.' : '');
   } else if (hasIndexed) {
@@ -2634,14 +2655,28 @@ window.renderTree = function(tree, hs) {
       return;
     }
 
-    ng.style.opacity   = '1';
-    ng.style.filter    = '';
+    // Nodes where every checked key missed (no matches at all) — dim the whole node
+    const allMissed = missed.size > 0 && matched.size === 0 && !isVisiting;
+    if (allMissed) {
+      ng.style.opacity   = '0.28';
+      ng.style.filter    = 'grayscale(70%)';
+      ng.style.transition = 'opacity 0.3s, filter 0.3s';
+    } else {
+      ng.style.opacity   = '1';
+      ng.style.filter    = '';
+    }
 
     // Override node border for visiting
     const nodeBg = ng.querySelector('.node-body');
     if (nodeBg && isVisiting) {
       nodeBg.setAttribute('stroke', '#FFD700');
       nodeBg.setAttribute('stroke-width', '2.5');
+    }
+    // Matched node gets a violet node border
+    if (nodeBg && matched.size > 0 && !isVisiting) {
+      nodeBg.setAttribute('stroke', '#8B5CF6');
+      nodeBg.setAttribute('stroke-width', '2');
+      nodeBg.setAttribute('filter', 'url(#glow)');
     }
 
     // Override key cell backgrounds
@@ -2653,7 +2688,6 @@ window.renderTree = function(tree, hs) {
         // Add cyan border overlay
         const existingOverlay = ng.querySelector(`.scan-cursor-overlay-${ki}`);
         if (!existingOverlay) {
-          // find the parent SVG namespace
           const ov = document.createElementNS(SVG_NS, 'rect');
           const x = parseFloat(cell.getAttribute('x'));
           const y = parseFloat(cell.getAttribute('y'));
@@ -2670,38 +2704,69 @@ window.renderTree = function(tree, hs) {
           ng.appendChild(ov);
         }
       } else if (matched.has(ki)) {
-        cell.setAttribute('fill', '#002A18');
+        cell.setAttribute('fill', '#160933');
         cell.style.animation = 'matchGlow 0.5s ease forwards';
-        // Remove cursor overlay if present
+        cell.style.opacity = '1';
         ng.querySelector(`.scan-cursor-overlay-${ki}`)?.remove();
+        // Violet border ring around matched key cell
+        if (!ng.querySelector(`.scan-match-ring-${ki}`)) {
+          const ring = document.createElementNS(SVG_NS, 'rect');
+          const x = parseFloat(cell.getAttribute('x'));
+          const y = parseFloat(cell.getAttribute('y'));
+          const w = parseFloat(cell.getAttribute('width'));
+          const h = parseFloat(cell.getAttribute('height'));
+          ring.setAttribute('x', x); ring.setAttribute('y', y);
+          ring.setAttribute('width', w); ring.setAttribute('height', h);
+          ring.setAttribute('rx', '2');
+          ring.setAttribute('fill', 'none');
+          ring.setAttribute('stroke', '#8B5CF6');
+          ring.setAttribute('stroke-width', '2.5');
+          ring.setAttribute('pointer-events', 'none');
+          ring.classList.add(`scan-match-ring-${ki}`);
+          ng.appendChild(ring);
+        }
       } else if (missed.has(ki)) {
-        cell.setAttribute('fill', '#0d1f1a');
-        cell.style.opacity = '0.55';
+        cell.setAttribute('fill', '#050908');
+        cell.style.animation = 'missedFade 0.4s ease forwards';
         ng.querySelector(`.scan-cursor-overlay-${ki}`)?.remove();
+        ng.querySelector(`.scan-match-ring-${ki}`)?.remove();
       } else {
         ng.querySelector(`.scan-cursor-overlay-${ki}`)?.remove();
+        ng.querySelector(`.scan-match-ring-${ki}`)?.remove();
       }
     });
 
-    // Override key text color for matched keys
-    // We need to find the text elements for each key.
-    // The key texts are siblings of cell rects — match them by position index.
-    // Rather than re-query (complex), we rely on CSS animation above being enough.
-    // Optionally add a ✓ tick badge on matched keys
+    // ── Match badge — circle indicator at top-right of matched key cell ──
     if (matched.size > 0) {
       matched.forEach(ki => {
         const badgeId = `match-badge-${nid}-${ki}`;
         if (!ng.querySelector(`#${badgeId}`)) {
-          // Find the approximate x position of this key cell
           const cells2 = ng.querySelectorAll('.key-cell-rect');
           if (cells2[ki]) {
-            const kx = parseFloat(cells2[ki].getAttribute('x'));
-            const ky = parseFloat(cells2[ki].getAttribute('y'));
+            const kx  = parseFloat(cells2[ki].getAttribute('x'));
+            const ky  = parseFloat(cells2[ki].getAttribute('y'));
+            const kw2 = parseFloat(cells2[ki].getAttribute('width'));
+            // Circle sits in top-right corner — never overlaps key text
+            const cx  = kx + kw2 - 10;
+            const cy  = ky + 10;
+
+            const circle = document.createElementNS(SVG_NS, 'circle');
+            circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
+            circle.setAttribute('r', '9');
+            circle.setAttribute('fill', '#0E072A');
+            circle.setAttribute('stroke', '#8B5CF6');
+            circle.setAttribute('stroke-width', '1.5');
+            circle.setAttribute('pointer-events', 'none');
+            circle.setAttribute('id', badgeId + '-bg');
+            ng.appendChild(circle);
+
             const tick = document.createElementNS(SVG_NS, 'text');
-            tick.setAttribute('x', kx + 6);
-            tick.setAttribute('y', ky + 10);
-            tick.setAttribute('font-size', '9');
-            tick.setAttribute('fill', '#00ED64');
+            tick.setAttribute('x', cx);
+            tick.setAttribute('y', cy + 4);
+            tick.setAttribute('text-anchor', 'middle');
+            tick.setAttribute('font-size', '11');
+            tick.setAttribute('font-weight', '700');
+            tick.setAttribute('fill', '#A78BFA');
             tick.setAttribute('font-family', 'monospace');
             tick.setAttribute('id', badgeId);
             tick.setAttribute('pointer-events', 'none');
