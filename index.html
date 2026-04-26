@@ -781,6 +781,26 @@ body {
     <!-- Insert Document -->
     <div class="panel-section" id="insert-section">
       <h2>Insert Document</h2>
+
+      <!-- JSON / Example loader -->
+      <div id="json-upload-wrap" style="margin-bottom:10px">
+        <div style="display:flex;gap:6px;margin-bottom:5px">
+          <label class="btn btn-secondary" for="json-file-input" style="cursor:pointer;flex:1;text-align:center;justify-content:center">⬆ Upload JSON</label>
+          <select id="example-select" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
+            <option value="">Load example…</option>
+            <option value="employees">Employees (20)</option>
+            <option value="products">Products (20)</option>
+            <option value="orders">Orders (20)</option>
+          </select>
+        </div>
+        <input type="file" id="json-file-input" accept=".json" style="display:none">
+        <div id="json-status" style="display:none;padding:5px 8px;background:var(--surface2);border:1px solid var(--accent-dim);border-radius:4px;font-size:11px;line-height:1.4">
+          <span id="json-status-text" style="color:var(--accent)"></span>
+          <button id="json-clear-btn" style="float:right;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0;line-height:1" title="Clear loaded data">×</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin-bottom:8px"></div>
+
       <div id="oid-preview" data-oid="" style="display:none"></div>
       <div id="doc-fields"></div>
       <!-- Extra (non-indexed) fields -->
@@ -803,21 +823,6 @@ body {
         <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
           <div id="bulk-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width 0.2s ease"></div>
         </div>
-      </div>
-    </div>
-
-    <!-- Animation Controls -->
-    <div class="panel-section">
-      <h2>Animation</h2>
-      <div id="anim-controls">
-        <button class="btn btn-secondary" id="play-btn" disabled>▶ Play</button>
-        <button class="btn btn-secondary" id="step-btn" disabled>⏭ Step</button>
-        <button class="btn btn-secondary" id="rewind-btn" disabled>↺ Rewind</button>
-      </div>
-      <div class="speed-row">
-        <span>Speed</span>
-        <input type="range" id="speed-slider" min="100" max="1500" value="700" step="100">
-        <span id="speed-label">700ms</span>
       </div>
     </div>
 
@@ -849,6 +854,21 @@ body {
         </div>
         <div id="scan-result-list" style="max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:3px"></div>
         <div id="scan-stats-line" style="margin-top:6px;font-size:10px;color:var(--text-dim)"></div>
+      </div>
+    </div>
+
+    <!-- Animation Controls -->
+    <div class="panel-section collapsed">
+      <h2>Animation</h2>
+      <div id="anim-controls">
+        <button class="btn btn-secondary" id="play-btn" disabled>▶ Play</button>
+        <button class="btn btn-secondary" id="step-btn" disabled>⏭ Step</button>
+        <button class="btn btn-secondary" id="rewind-btn" disabled>↺ Rewind</button>
+      </div>
+      <div class="speed-row">
+        <span>Speed</span>
+        <input type="range" id="speed-slider" min="100" max="1500" value="700" step="100">
+        <span id="speed-label">700ms</span>
       </div>
     </div>
 
@@ -1194,6 +1214,8 @@ function renderTree(tree, highlightState = {}) {
   const vw = wrap.clientWidth;
   const tx = svgW < vw ? (vw - svgW) / 2 : 0;
   g.setAttribute('transform', `translate(${tx},0)`);
+  lastPositions = positions;
+  lastTx = tx;
 
   // Draw edges layer
   const edgeG = makeSvgEl('g', { id: 'edge-layer' });
@@ -1528,6 +1550,9 @@ let indexActive = false;
 let pendingEvents = null;
 let animPlaying = false;
 let docCount = 0;
+let lastPositions = null;  // node positions from most recent renderTree call
+let lastTx = 0;            // translate-x applied to tree-root-g
+let pendingDocs = [];      // docs loaded from JSON/example, queued until index is created
 
 // fieldName → { type, enumVals }  — set when index is created
 const fieldTypeConfig = new Map();
@@ -1743,6 +1768,71 @@ function genOid() {
   return oid;
 }
 
+// ─────────────────────────────────────────────────────────────
+//  JSON / Example Data Loader
+// ─────────────────────────────────────────────────────────────
+const JSON_MAX_BYTES = 150 * 1024; // 150 KB
+const JSON_MAX_DOCS  = 300;
+
+function inferType(val) {
+  if (typeof val === 'boolean') return 'boolean';
+  if (typeof val === 'number')  return Number.isInteger(val) ? 'number' : 'float';
+  if (typeof val === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}/.test(val))          return 'date';
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val))  return 'email';
+  }
+  return 'string';
+}
+
+function detectFieldsFromDocs(docs) {
+  const seen = new Map(); // fieldName → type
+  docs.slice(0, 50).forEach(doc => {
+    Object.keys(doc).forEach(k => {
+      if (k === '_id' || seen.has(k)) return;
+      seen.set(k, inferType(doc[k]));
+    });
+  });
+  return Array.from(seen.entries()).map(([name, type]) => ({ name, type, dir: 1, enumVals: [] }));
+}
+
+function setJsonStatus(msg, isError = false) {
+  const box  = document.getElementById('json-status');
+  const text = document.getElementById('json-status-text');
+  box.style.display = msg ? '' : 'none';
+  box.style.borderColor = isError ? 'var(--red)' : 'var(--accent-dim)';
+  text.style.color      = isError ? 'var(--red)' : 'var(--accent)';
+  text.textContent = msg;
+}
+
+function loadJsonDocs(raw) {
+  // Normalise to array
+  let docs = Array.isArray(raw) ? raw : [raw];
+  docs = docs.filter(d => d && typeof d === 'object' && !Array.isArray(d));
+  if (docs.length === 0) { setJsonStatus('No valid objects found in JSON.', true); return; }
+
+  const truncated = docs.length > JSON_MAX_DOCS;
+  docs = docs.slice(0, JSON_MAX_DOCS).map(d => {
+    const doc = { ...d };
+    if (!doc._id) doc._id = genObjectId();
+    return doc;
+  });
+  pendingDocs = docs;
+
+  // If no index yet, auto-populate the Index Config field rows
+  if (!indexActive) {
+    const configs = detectFieldsFromDocs(docs);
+    document.getElementById('field-rows').innerHTML = '';
+    configs.forEach(c => addFieldRow(c.name, c.type));
+  }
+
+  const note = truncated ? ` (truncated to ${JSON_MAX_DOCS})` : '';
+  const action = indexActive ? 'Inserting into tree…' : 'Configure index fields above, then click Create Index.';
+  setJsonStatus(`${docs.length} document${docs.length !== 1 ? 's' : ''} loaded${note}. ${action}`);
+
+  // If index already exists, start inserting immediately
+  if (indexActive) startBulkInsertFromDocs();
+}
+
 function createIndex() {
   const configs = getIndexFieldConfigs();
   if (configs.length === 0) { alert('Add at least one field.'); return; }
@@ -1779,6 +1869,9 @@ function createIndex() {
   enableScanUI();
   updateStats();
   renderTree(tree, {});
+
+  // Replay any docs that were loaded before the index existed
+  if (pendingDocs.length > 0) startBulkInsertFromDocs();
 }
 
 function resetIndex() {
@@ -1808,9 +1901,13 @@ function resetIndex() {
 
   docStore.clear();
   fieldTypeConfig.clear();
+  pendingDocs = [];
   disableScanUI();
   document.getElementById('doc-extra-section').style.display = 'none';
   clearExtraFieldRows();
+  document.getElementById('example-select').value = '';
+  document.getElementById('json-file-input').value = '';
+  setJsonStatus('');
   const g = document.getElementById('tree-root-g');
   g.innerHTML = '';
   document.getElementById('empty-state').style.display = 'flex';
@@ -1855,6 +1952,40 @@ function addDocToLog(doc, fields) {
 // ─────────────────────────────────────────────────────────────
 //  Event handlers
 // ─────────────────────────────────────────────────────────────
+document.getElementById('json-file-input').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  if (file.size > JSON_MAX_BYTES) {
+    setJsonStatus(`File too large (${(file.size/1024).toFixed(0)} KB). Max is ${JSON_MAX_BYTES/1024} KB.`, true);
+    this.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      loadJsonDocs(parsed);
+    } catch (err) {
+      setJsonStatus('Invalid JSON: ' + err.message, true);
+    }
+  };
+  reader.readAsText(file);
+  this.value = ''; // allow re-selecting same file
+});
+
+document.getElementById('example-select').addEventListener('change', function () {
+  const key = this.value;
+  if (!key) return;
+  loadJsonDocs(EXAMPLE_DATASETS[key].map(d => ({ ...d })));
+});
+
+document.getElementById('json-clear-btn').addEventListener('click', () => {
+  pendingDocs = [];
+  document.getElementById('example-select').value = '';
+  document.getElementById('json-file-input').value = '';
+  setJsonStatus('');
+});
+
 document.getElementById('add-field-btn').addEventListener('click', () => addFieldRow());
 
 document.getElementById('create-index-btn').addEventListener('click', createIndex);
@@ -1959,6 +2090,78 @@ document.getElementById('speed-slider').addEventListener('input', function () {
     });
   }
 });
+
+// ─────────────────────────────────────────────────────────────
+//  Example Datasets
+// ─────────────────────────────────────────────────────────────
+const EXAMPLE_DATASETS = {
+  employees: [
+    {name:'Alice Chen',age:32,department:'Engineering',salary:95000.0},
+    {name:'Bob Smith',age:45,department:'Marketing',salary:72000.0},
+    {name:'Carol Davis',age:28,department:'Engineering',salary:88000.0},
+    {name:'Dave Wilson',age:51,department:'Finance',salary:110000.0},
+    {name:'Eve Johnson',age:36,department:'HR',salary:68000.0},
+    {name:'Frank Lee',age:29,department:'Engineering',salary:91000.0},
+    {name:'Grace Park',age:43,department:'Sales',salary:78000.0},
+    {name:'Hank Brown',age:38,department:'Marketing',salary:74000.0},
+    {name:'Ivy Martinez',age:25,department:'Engineering',salary:82000.0},
+    {name:'Jack Taylor',age:47,department:'Finance',salary:120000.0},
+    {name:'Karen White',age:33,department:'Product',salary:98000.0},
+    {name:'Leo Garcia',age:41,department:'Sales',salary:85000.0},
+    {name:'Mia Anderson',age:27,department:'Design',salary:77000.0},
+    {name:'Noah Thomas',age:55,department:'Finance',salary:135000.0},
+    {name:'Olivia Moore',age:31,department:'Engineering',salary:93000.0},
+    {name:'Paul Jackson',age:44,department:'HR',salary:71000.0},
+    {name:'Quinn Harris',age:26,department:'Design',salary:75000.0},
+    {name:'Rosa Martin',age:39,department:'Product',salary:102000.0},
+    {name:'Sam Thompson',age:34,department:'Engineering',salary:97000.0},
+    {name:'Tina Lopez',age:48,department:'Marketing',salary:80000.0},
+  ],
+  products: [
+    {name:'Wireless Mouse',category:'Electronics',price:29.99,inStock:true},
+    {name:'Desk Lamp',category:'Home',price:45.00,inStock:true},
+    {name:'Running Shoes',category:'Sports',price:89.95,inStock:false},
+    {name:'Python Cookbook',category:'Books',price:39.99,inStock:true},
+    {name:'Yoga Mat',category:'Sports',price:25.50,inStock:true},
+    {name:'USB-C Hub',category:'Electronics',price:54.99,inStock:true},
+    {name:'Coffee Maker',category:'Home',price:79.00,inStock:false},
+    {name:'Noise Cancelling Headphones',category:'Electronics',price:199.99,inStock:true},
+    {name:'Resistance Bands',category:'Sports',price:18.99,inStock:true},
+    {name:'Standing Desk',category:'Home',price:349.00,inStock:false},
+    {name:'Mechanical Keyboard',category:'Electronics',price:129.99,inStock:true},
+    {name:'Water Bottle',category:'Sports',price:22.00,inStock:true},
+    {name:'Desk Plant',category:'Home',price:14.99,inStock:true},
+    {name:'JavaScript Guide',category:'Books',price:44.99,inStock:true},
+    {name:'Webcam HD',category:'Electronics',price:69.99,inStock:false},
+    {name:'Foam Roller',category:'Sports',price:31.00,inStock:true},
+    {name:'LED Strip Lights',category:'Home',price:19.99,inStock:true},
+    {name:'Design Patterns',category:'Books',price:49.99,inStock:true},
+    {name:'Ergonomic Chair',category:'Home',price:289.00,inStock:false},
+    {name:'Portable SSD',category:'Electronics',price:109.99,inStock:true},
+  ],
+  orders: [
+    {customerId:1001,amount:129.99,status:'delivered',createdAt:'2024-01-05'},
+    {customerId:1042,amount:45.50,status:'shipped',createdAt:'2024-01-08'},
+    {customerId:1017,amount:299.00,status:'delivered',createdAt:'2024-01-10'},
+    {customerId:1003,amount:18.99,status:'cancelled',createdAt:'2024-01-12'},
+    {customerId:1055,amount:74.00,status:'delivered',createdAt:'2024-01-15'},
+    {customerId:1028,amount:199.99,status:'processing',createdAt:'2024-01-17'},
+    {customerId:1001,amount:55.25,status:'delivered',createdAt:'2024-01-19'},
+    {customerId:1064,amount:340.00,status:'shipped',createdAt:'2024-01-21'},
+    {customerId:1033,amount:22.00,status:'delivered',createdAt:'2024-01-23'},
+    {customerId:1019,amount:88.50,status:'delivered',createdAt:'2024-01-25'},
+    {customerId:1071,amount:15.99,status:'cancelled',createdAt:'2024-01-27'},
+    {customerId:1009,amount:410.00,status:'delivered',createdAt:'2024-01-29'},
+    {customerId:1047,amount:63.75,status:'shipped',createdAt:'2024-02-01'},
+    {customerId:1022,amount:149.99,status:'delivered',createdAt:'2024-02-03'},
+    {customerId:1058,amount:37.00,status:'processing',createdAt:'2024-02-05'},
+    {customerId:1013,amount:250.00,status:'delivered',createdAt:'2024-02-07'},
+    {customerId:1039,amount:92.40,status:'delivered',createdAt:'2024-02-09'},
+    {customerId:1002,amount:175.00,status:'shipped',createdAt:'2024-02-11'},
+    {customerId:1067,amount:44.99,status:'delivered',createdAt:'2024-02-13'},
+    {customerId:1025,amount:320.50,status:'processing',createdAt:'2024-02-15'},
+  ],
+};
 
 // ─────────────────────────────────────────────────────────────
 //  Dummy Data Generator
@@ -2088,44 +2291,55 @@ function startBulkInsert() {
 }
 
 function processBulkQueue(idx) {
-  if (idx >= bulkQueue.length) {
-    // Done
+  const total = bulkQueue.length;
+  if (idx >= total) {
     bulkRunning = false;
     document.getElementById('bulk-btn').disabled = false;
     document.getElementById('insert-btn').disabled = false;
     document.getElementById('bulk-progress').style.display = 'none';
     document.getElementById('bulk-label').textContent = 'Inserting…';
-    setStepMsg(`✓ Bulk insert complete — ${BULK_COUNT} documents added`);
+    setStepMsg(`✓ Bulk insert complete — ${total} documents added`);
     renderTree(tree, {});
     updateStats();
     return;
   }
 
   const doc = bulkQueue[idx];
-  const pct = Math.round((idx / BULK_COUNT) * 100);
+  const pct = Math.round((idx / total) * 100);
 
-  // Update progress bar
   document.getElementById('bulk-bar').style.width = pct + '%';
-  document.getElementById('bulk-counter').textContent = `${idx} / ${BULK_COUNT}`;
+  document.getElementById('bulk-counter').textContent = `${idx} / ${total}`;
   document.getElementById('bulk-label').textContent =
     `Inserting ${formatKeyLabel(tree.extractKey(doc))}`;
-  setStepMsg(`Bulk [${idx + 1}/${BULK_COUNT}] inserting ${formatKeyLabel(tree.extractKey(doc))}`);
+  setStepMsg(`Bulk [${idx + 1}/${total}] inserting ${formatKeyLabel(tree.extractKey(doc))}`);
 
-  // Insert into tree
   tree.insert(doc);
   docStore.set(doc._id, { ...doc });
   addDocToLog(doc, tree.indexFields);
   updateStats();
-
-  // Render with a brief flash of the inserted key highlighted
-  // We re-run a lightweight insert-event just for the final 'insert' marker
-  const insertEvents = tree.insert.__last_events || [];
   renderTree(tree, {});
 
-  // Animate the newly inserted node with a CSS flash by adding a class
-  setTimeout(() => {
-    processBulkQueue(idx + 1);
-  }, 220); // ~220ms per record — quick but visible
+  setTimeout(() => processBulkQueue(idx + 1), 220);
+}
+
+function startBulkInsertFromDocs() {
+  if (!indexActive || bulkRunning || animPlaying) return;
+  if (pendingDocs.length === 0) return;
+
+  bulkQueue = pendingDocs;
+  pendingDocs = [];
+  bulkRunning = true;
+
+  document.getElementById('bulk-btn').disabled = true;
+  document.getElementById('insert-btn').disabled = true;
+  document.getElementById('play-btn').disabled = true;
+  document.getElementById('step-btn').disabled = true;
+  document.getElementById('rewind-btn').disabled = true;
+  document.getElementById('bulk-progress').style.display = 'block';
+  document.getElementById('bulk-bar').style.width = '0%';
+
+  setJsonStatus('');
+  processBulkQueue(0);
 }
 
 // Hook: monkey-patch tree.insert to also capture events for flash
@@ -2281,12 +2495,41 @@ function clearScan() {
   document.getElementById('run-scan-btn').disabled = false;
   document.getElementById('run-scan-btn').textContent = '▶ Run Scan';
   setStepMsg('');
+  const wrap = document.getElementById('svg-wrap');
+  const svgW = parseFloat(document.getElementById('btree-svg').getAttribute('width')) || 0;
+  wrap.scrollTo({ left: Math.max(0, (svgW - wrap.clientWidth) / 2), top: 0, behavior: 'smooth' });
 }
 
 function matchesExtraFilter(doc, f) {
   const raw = doc[f.fieldName];
   const kv  = parseVal(raw !== undefined ? String(raw) : null);
   return matchesFilter(kv, f.op, parseVal(f.v1), parseVal(f.v2));
+}
+
+function scrollToNode(nodeId) {
+  if (!lastPositions) return;
+  const pos = lastPositions.get(nodeId);
+  if (!pos) return;
+  const wrap = document.getElementById('svg-wrap');
+  const margin = 48;
+  const nodeLeft   = pos.x + lastTx;
+  const nodeRight  = nodeLeft + pos.w;
+  const nodeTop    = pos.y;
+  const nodeBottom = nodeTop + NODE_H;
+  const visLeft    = wrap.scrollLeft;
+  const visRight   = wrap.scrollLeft + wrap.clientWidth;
+  const visTop     = wrap.scrollTop;
+  const visBottom  = wrap.scrollTop + wrap.clientHeight;
+
+  let targetLeft = wrap.scrollLeft;
+  let targetTop  = wrap.scrollTop;
+  if (nodeLeft - margin < visLeft)        targetLeft = nodeLeft - margin;
+  else if (nodeRight + margin > visRight) targetLeft = nodeRight + margin - wrap.clientWidth;
+  if (nodeTop - margin < visTop)          targetTop  = nodeTop - margin;
+  else if (nodeBottom + margin > visBottom) targetTop = nodeBottom + margin - wrap.clientHeight;
+
+  if (targetLeft !== wrap.scrollLeft || targetTop !== wrap.scrollTop)
+    wrap.scrollTo({ left: Math.max(0, targetLeft), top: Math.max(0, targetTop), behavior: 'smooth' });
 }
 
 function runScan() {
@@ -2376,6 +2619,7 @@ function runScan() {
     }
     setStepMsg(scanEventDescription(ev));
     renderTree(tree, scanState);
+    if (ev.type === 'scan-enter' || ev.type === 'scan-key') scrollToNode(ev.nodeId);
   }
 
   function tick() {
