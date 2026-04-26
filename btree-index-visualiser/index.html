@@ -286,11 +286,6 @@ body {
 }
 
 /* Anim controls */
-#anim-controls {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
 .speed-row {
   display: flex;
   align-items: center;
@@ -916,18 +911,18 @@ body {
       </div>
     </div>
 
-    <!-- Animation Controls -->
-    <div class="panel-section collapsed">
-      <h2>Animation</h2>
-      <div id="anim-controls">
-        <button class="btn btn-secondary" id="play-btn" disabled>▶ Play</button>
-        <button class="btn btn-secondary" id="step-btn" disabled>⏭ Step</button>
-        <button class="btn btn-secondary" id="rewind-btn" disabled>↺ Rewind</button>
-      </div>
+    <!-- Animation Speed -->
+    <div class="panel-section">
+      <h2>Animation Speed</h2>
       <div class="speed-row">
-        <span>Speed</span>
+        <span>Insert</span>
         <input type="range" id="speed-slider" min="100" max="1500" value="700" step="100">
         <span id="speed-label">700ms</span>
+      </div>
+      <div class="speed-row">
+        <span>Scan</span>
+        <input type="range" id="scan-speed-slider" min="100" max="1500" value="700" step="100">
+        <span id="scan-speed-label">700ms</span>
       </div>
     </div>
 
@@ -2006,9 +2001,6 @@ function resetIndex() {
   document.querySelectorAll('.idx-dir-input').forEach(i => i.disabled = false);
   document.getElementById('create-index-btn').style.display = '';
   document.getElementById('reset-index-btn').style.display = 'none';
-  document.getElementById('play-btn').disabled = true;
-  document.getElementById('step-btn').disabled = true;
-  document.getElementById('rewind-btn').disabled = true;
   document.getElementById('tree-stats').style.display = 'none';
   document.getElementById('index-badge').textContent = 'No index created';
   document.getElementById('step-msg').textContent = '';
@@ -2137,15 +2129,16 @@ document.getElementById('insert-btn').addEventListener('click', () => {
 
   lockJsonTab();
 
-  // Render tree in final state, then rewind anim display
+  // Render tree in final state, then auto-play animation
   renderTree(tree, {});
-
-  // Enable animation controls
-  document.getElementById('play-btn').disabled = false;
-  document.getElementById('step-btn').disabled = false;
-  document.getElementById('rewind-btn').disabled = false;
-
-  setStepMsg(`Ready to animate insertion of ${formatKeyLabel(tree.extractKey(doc))}`);
+  animPlaying = true;
+  document.getElementById('bulk-btn').disabled = true;
+  anim.play(() => {
+    animPlaying = false;
+    document.getElementById('bulk-btn').disabled = false;
+    renderTree(tree, {});
+  });
+  setStepMsg(`Animating insertion of ${formatKeyLabel(tree.extractKey(doc))}`);
 });
 
 // Animation step callback
@@ -2159,42 +2152,6 @@ anim.onStep = (ev, state) => {
   }
 };
 
-document.getElementById('play-btn').addEventListener('click', () => {
-  if (!pendingEvents) return;
-  if (animPlaying) {
-    anim.pause();
-    animPlaying = false;
-    document.getElementById('play-btn').textContent = '▶ Play';
-    return;
-  }
-  // If animation done, rewind first
-  if (anim.done) { anim.reset(); }
-  animPlaying = true;
-  document.getElementById('bulk-btn').disabled = true;
-  document.getElementById('play-btn').textContent = '⏸ Pause';
-  anim.play(() => {
-    animPlaying = false;
-    document.getElementById('play-btn').textContent = '▶ Play';
-    document.getElementById('bulk-btn').disabled = false;
-    renderTree(tree, {});
-  });
-});
-
-document.getElementById('step-btn').addEventListener('click', () => {
-  if (!pendingEvents || animPlaying) return;
-  if (anim.done) { anim.reset(); }
-  anim.advance();
-});
-
-document.getElementById('rewind-btn').addEventListener('click', () => {
-  anim.pause();
-  anim.reset();
-  animPlaying = false;
-  document.getElementById('play-btn').textContent = '▶ Play';
-  renderTree(tree, {});
-  setStepMsg('Animation rewound — press Play or Step');
-});
-
 document.getElementById('speed-slider').addEventListener('input', function () {
   const v = parseInt(this.value);
   anim.speed = v;
@@ -2203,10 +2160,13 @@ document.getElementById('speed-slider').addEventListener('input', function () {
     anim.pause();
     anim.play(() => {
       animPlaying = false;
-      document.getElementById('play-btn').textContent = '▶ Play';
       renderTree(tree, {});
     });
   }
+});
+
+document.getElementById('scan-speed-slider').addEventListener('input', function () {
+  document.getElementById('scan-speed-label').textContent = parseInt(this.value) + 'ms';
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -2402,9 +2362,6 @@ function startBulkInsert() {
 
   document.getElementById('bulk-btn').disabled = true;
   document.getElementById('insert-btn').disabled = true;
-  document.getElementById('play-btn').disabled = true;
-  document.getElementById('step-btn').disabled = true;
-  document.getElementById('rewind-btn').disabled = true;
   document.getElementById('bulk-progress').style.display = 'block';
   document.getElementById('bulk-bar').style.width = '0%';
 
@@ -2454,9 +2411,6 @@ function startBulkInsertFromDocs() {
 
   document.getElementById('bulk-btn').disabled = true;
   document.getElementById('insert-btn').disabled = true;
-  document.getElementById('play-btn').disabled = true;
-  document.getElementById('step-btn').disabled = true;
-  document.getElementById('rewind-btn').disabled = true;
   document.getElementById('bulk-progress').style.display = 'block';
   document.getElementById('bulk-bar').style.width = '0%';
 
@@ -2688,7 +2642,7 @@ function runScan() {
   scanResults = [];
 
   let step = 0;
-  const speed = parseInt(document.getElementById('speed-slider').value);
+  const speed = parseInt(document.getElementById('scan-speed-slider').value);
 
   document.getElementById('run-scan-btn').textContent = '⏹ Stop';
   document.getElementById('clear-scan-btn').disabled = false;
@@ -2696,7 +2650,6 @@ function runScan() {
   // Disable insert controls during scan
   document.getElementById('insert-btn').disabled = true;
   document.getElementById('bulk-btn').disabled = true;
-  document.getElementById('play-btn').disabled = true;
 
   function applyEvent(ev) {
     switch (ev.type) {
@@ -2751,7 +2704,6 @@ function runScan() {
       document.getElementById('run-scan-btn').disabled = false;
       document.getElementById('insert-btn').disabled = false;
       document.getElementById('bulk-btn').disabled = false;
-      document.getElementById('play-btn').disabled = !pendingEvents;
       return;
     }
     applyEvent(events[step++]);
