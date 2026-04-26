@@ -741,6 +741,85 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
+/* ── Mobile menu button & backdrop ──────────────────── */
+#mobile-menu-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+#mobile-menu-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+
+#panel-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+#panel-backdrop.active { display: block; }
+
+/* ── Responsive breakpoint ───────────────────────────── */
+@media (max-width: 768px) {
+  body { font-size: 12px; }
+
+  #mobile-menu-btn { display: block; }
+
+  #header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  #header h1 { font-size: 12px; letter-spacing: 0.3px; }
+  #index-badge { display: none; }
+  #info-bar { font-size: 11px; }
+  #step-msg { font-size: 11px; }
+
+  #app { position: relative; }
+
+  #panel {
+    position: fixed;
+    left: -105%;
+    top: 0;
+    bottom: 0;
+    width: 300px;
+    max-width: 88vw;
+    z-index: 100;
+    transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid var(--accent-dim);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+  }
+  #panel.mobile-open { left: 0; }
+
+  #viz-panel { width: 100%; }
+
+  #legend {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 7px 12px;
+  }
+
+  /* Larger touch targets for buttons */
+  .btn { padding: 8px 14px; font-size: 12px; }
+  .itab { padding: 7px 4px; }
+
+  /* Panel sections slightly more compact */
+  .panel-section { padding: 11px 13px; }
+
+  /* Scan result list taller on mobile since panel fills screen */
+  #scan-result-list { max-height: 200px; }
+  #doc-list { max-height: 260px; }
+}
+
 /* Empty state */
 #empty-state {
   position: absolute;
@@ -775,6 +854,7 @@ body {
 
 <!-- Header -->
 <div id="header">
+  <button id="mobile-menu-btn" title="Toggle controls" aria-label="Toggle controls panel">☰</button>
   <h1>B-Tree <span>Index</span> Visualizer</h1>
   <div id="index-badge">No index created</div>
   <div id="info-bar">
@@ -782,6 +862,9 @@ body {
     <span id="tree-stats" style="display:none">Height: 1 · Nodes: 1 · Keys: 0</span>
   </div>
 </div>
+
+<!-- Panel backdrop (mobile) -->
+<div id="panel-backdrop"></div>
 
 <!-- Main -->
 <div id="app">
@@ -3300,6 +3383,37 @@ document.getElementById('empty-state').style.display = 'flex';
 // Pre-populate with a demo hint
 document.getElementById('index-hint').textContent =
   'Add fields and click "Create Index" to begin.';
+
+// ── Mobile panel drawer ─────────────────────────────────────
+(function () {
+  const btn      = document.getElementById('mobile-menu-btn');
+  const panel    = document.getElementById('panel');
+  const backdrop = document.getElementById('panel-backdrop');
+
+  function openPanel() {
+    panel.classList.add('mobile-open');
+    backdrop.classList.add('active');
+    btn.textContent = '✕';
+  }
+  function closePanel() {
+    panel.classList.remove('mobile-open');
+    backdrop.classList.remove('active');
+    btn.textContent = '☰';
+  }
+
+  btn.addEventListener('click', () => {
+    panel.classList.contains('mobile-open') ? closePanel() : openPanel();
+  });
+  backdrop.addEventListener('click', closePanel);
+
+  // Close panel when user taps a primary action button inside it (run scan / insert)
+  ['insert-btn', 'run-scan-btn', 'bulk-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => {
+      if (window.innerWidth <= 768) closePanel();
+    });
+  });
+})();
 
 </script>
 </body>
