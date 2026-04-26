@@ -2803,6 +2803,7 @@ function buildFilterRow(fieldName, fieldIdx, isLeading) {
     <div class="sff-header">
       <span class="sff-field-badge">${fieldName}</span>
       <select class="sff-op">${OP_OPTIONS}</select>
+      <button class="remove-sff" title="Remove filter">×</button>
     </div>
     <div class="sff-vals" style="display:none">
       <input class="sff-val1" type="text" placeholder="value">
@@ -2814,6 +2815,10 @@ function buildFilterRow(fieldName, fieldIdx, isLeading) {
       </div>
     </div>
   `;
+  div.querySelector('.remove-sff').addEventListener('click', () => {
+    div.remove();
+    updatePrefixHint();
+  });
   wireFilterRowEvents(div);
   return div;
 }
