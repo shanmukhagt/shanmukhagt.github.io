@@ -999,13 +999,13 @@ body {
       <h2>Animation Speed</h2>
       <div class="speed-row">
         <span>Insert</span>
-        <input type="range" id="speed-slider" min="100" max="1500" value="700" step="100">
-        <span id="speed-label">700ms</span>
+        <input type="range" id="speed-slider" min="10" max="800" value="400" step="10">
+        <span id="speed-label">400ms</span>
       </div>
       <div class="speed-row">
         <span>Scan</span>
-        <input type="range" id="scan-speed-slider" min="100" max="1500" value="700" step="100">
-        <span id="scan-speed-label">700ms</span>
+        <input type="range" id="scan-speed-slider" min="10" max="800" value="400" step="10">
+        <span id="scan-speed-label">400ms</span>
       </div>
     </div>
 
@@ -1597,7 +1597,7 @@ class AnimCtrl {
     this.events = [];
     this.step = 0;
     this.timer = null;
-    this.speed = 700;
+    this.speed = 400;
     this.visitedNodes = new Set();
     this.state = {}; // current highlight state
     this.onStep = null; // callback
@@ -2229,9 +2229,13 @@ anim.onStep = (ev, state) => {
   setStepMsg(eventDescription(ev));
   if (ev.type !== 'done') {
     renderTree(tree, state);
+    // Auto-scroll so the highlighted node stays in view
+    const scrollId = ev.nodeId !== undefined ? ev.nodeId
+                   : ev.type === 'split'    ? ev.rightId
+                   : null;
+    if (scrollId != null) scrollToNode(scrollId);
   } else {
     renderTree(tree, {});
-    animPlaying = false;
   }
 };
 
@@ -2455,6 +2459,7 @@ function processBulkQueue(idx) {
   const total = bulkQueue.length;
   if (idx >= total) {
     bulkRunning = false;
+    animPlaying = false;
     document.getElementById('bulk-btn').disabled = false;
     document.getElementById('insert-btn').disabled = false;
     document.getElementById('bulk-progress').style.display = 'none';
@@ -2473,15 +2478,19 @@ function processBulkQueue(idx) {
   document.getElementById('bulk-counter').textContent = `${idx} / ${total}`;
   document.getElementById('bulk-label').textContent =
     `Inserting ${formatKeyLabel(tree.extractKey(doc))}`;
-  setStepMsg(`Bulk [${idx + 1}/${total}] inserting ${formatKeyLabel(tree.extractKey(doc))}`);
 
-  tree.insert(doc);
+  const events = tree.insert(doc);
   docStore.set(doc._id, { ...doc });
   addDocToLog(doc, tree.indexFields);
   updateStats();
-  renderTree(tree, {});
 
-  setTimeout(() => processBulkQueue(idx + 1), 220);
+  renderTree(tree, {});
+  anim.load(events);
+  animPlaying = true;
+  anim.play(() => {
+    renderTree(tree, {});
+    processBulkQueue(idx + 1);
+  });
 }
 
 function startBulkInsertFromDocs() {
