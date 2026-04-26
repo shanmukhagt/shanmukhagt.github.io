@@ -290,8 +290,53 @@ body {
 }
 .speed-row input[type=range] {
   flex: 1;
-  accent-color: var(--accent);
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;        /* full hit-area height; track styled via pseudo-element */
+  background: transparent;
+  outline: none;
+}
+/* WebKit/Blink track — gradient fill controlled by --pct inherited from element */
+.speed-row input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #8B5CF6 var(--pct, 11%),
+    #1C1F38 var(--pct, 11%)
+  );
+}
+/* WebKit/Blink thumb — margin-top centres 14px thumb on 4px track */
+.speed-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #EDE9FE;
+  border: 2px solid #8B5CF6;
+  margin-top: -5px;
+  cursor: pointer;
+}
+/* Firefox track & fill */
+.speed-row input[type=range]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #1C1F38;
+}
+.speed-row input[type=range]::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: #8B5CF6;
+}
+.speed-row input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #EDE9FE;
+  border: 2px solid #8B5CF6;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
 /* Document log */

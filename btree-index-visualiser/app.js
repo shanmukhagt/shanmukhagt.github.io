@@ -646,7 +646,7 @@ class AnimCtrl {
     this.events = [];
     this.step = 0;
     this.timer = null;
-    this.speed = 400;
+    this.speed = 100;
     this.visitedNodes = new Set();
     this.state = {}; // current highlight state
     this.onStep = null; // callback
@@ -1361,10 +1361,19 @@ anim.onStep = (ev, state) => {
   }
 };
 
+function updateSliderFill(slider) {
+  const min = slider.min !== '' ? +slider.min : 0;
+  const max = slider.max !== '' ? +slider.max : 100;
+  const pct = ((slider.valueAsNumber - min) / (max - min) * 100).toFixed(1) + '%';
+  // --pct is set on the element and inherited by ::-webkit-slider-runnable-track
+  slider.style.setProperty('--pct', pct);
+}
+
 document.getElementById('speed-slider').addEventListener('input', function () {
   const v = parseInt(this.value);
   anim.speed = v;
   document.getElementById('speed-label').textContent = v + 'ms';
+  updateSliderFill(this);
   if (animPlaying) {
     anim.pause();
     anim.play(() => {
@@ -1376,7 +1385,14 @@ document.getElementById('speed-slider').addEventListener('input', function () {
 
 document.getElementById('scan-speed-slider').addEventListener('input', function () {
   document.getElementById('scan-speed-label').textContent = parseInt(this.value) + 'ms';
+  updateSliderFill(this);
 });
+
+// Sync label, speed, and fill to actual slider values on load.
+// dispatchEvent reuses the existing input handlers, so if the browser
+// restored a previous value from session history everything stays consistent.
+document.getElementById('speed-slider').dispatchEvent(new Event('input'));
+document.getElementById('scan-speed-slider').dispatchEvent(new Event('input'));
 
 // ─────────────────────────────────────────────────────────────
 //  Example Datasets
@@ -2817,7 +2833,7 @@ function showSplitToast(msg) {
   document.getElementById('split-toast-msg').textContent = msg;
   document.getElementById('split-toast').classList.add('active');
   // Auto-hide after at least 3s, or 4× the current animation speed (whichever is longer)
-  const speed = parseInt(document.getElementById('speed-slider').value) || 400;
+  const speed = parseInt(document.getElementById('speed-slider').value) || 100;
   _splitToastTimer = setTimeout(hideSplitToast, Math.max(3000, speed * 4));
 }
 
