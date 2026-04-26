@@ -298,6 +298,24 @@ class BTree {
   }
 }
 
+function cloneNode(node) {
+  const n = Object.create(BTreeNode.prototype);
+  n.id = node.id;
+  n.isLeaf = node.isLeaf;
+  n.keys = node.keys.map(k => Array.isArray(k) ? [...k] : k);
+  n.rids = [...node.rids];
+  n.children = node.children.map(cloneNode);
+  return n;
+}
+
+function cloneTree(btree) {
+  const c = Object.create(BTree.prototype);
+  c.t = btree.t;
+  c.indexFields = btree.indexFields;
+  c.root = btree.root ? cloneNode(btree.root) : null;
+  return c;
+}
+
 // ─────────────────────────────────────────────────────────────
 //  Layout Engine
 // ─────────────────────────────────────────────────────────────
@@ -667,10 +685,12 @@ class AnimCtrl {
 
   play(onDone) {
     this.pause();
+    this._onDone = onDone || null;
     this.timer = setInterval(() => {
       if (this.done) {
         this.pause();
-        if (onDone) onDone();
+        const cb = this._onDone; this._onDone = null;
+        if (cb) cb();
         return;
       }
       this.advance();
@@ -746,6 +766,8 @@ let zoomLevel = 1;         // current zoom factor
 let stepModeActive = false;// true when step-by-step mode is on
 let stepModeResolve = null;// resolve fn for the current step pause
 let delAnim = null;        // delete animation interval
+let _delTick = null;       // tick fn ref for step-mode access
+let delRunning = false;    // true from runDelete start until completion or stop
 let knownNodeIds = new Set(); // tracks node IDs before each insert for diff highlight
 
 // fieldName → { type, enumVals }  — set when index is created
@@ -1388,11 +1410,21 @@ document.getElementById('scan-speed-slider').addEventListener('input', function 
   updateSliderFill(this);
 });
 
+document.getElementById('del-speed-slider').addEventListener('input', function () {
+  document.getElementById('del-speed-label').textContent = parseInt(this.value) + 'ms';
+  updateSliderFill(this);
+  if (delAnim) {
+    clearInterval(delAnim);
+    delAnim = setInterval(_delTick, parseInt(this.value));
+  }
+});
+
 // Sync label, speed, and fill to actual slider values on load.
 // dispatchEvent reuses the existing input handlers, so if the browser
 // restored a previous value from session history everything stays consistent.
 document.getElementById('speed-slider').dispatchEvent(new Event('input'));
 document.getElementById('scan-speed-slider').dispatchEvent(new Event('input'));
+document.getElementById('del-speed-slider').dispatchEvent(new Event('input'));
 
 // ─────────────────────────────────────────────────────────────
 //  Example Datasets
@@ -1851,9 +1883,15 @@ function generateScanEvents(tree, filters, isDesc) {
 let scanAnim = null;      // active scan animation timer
 let scanState = null;     // current scan highlight state (null = no scan active)
 let scanResults = [];     // accumulated matched results
+let scanStep = 0;         // current event index — module-level for step-mode access
+let scanEvents = [];      // full event list — module-level for step-mode access
+let _scanTick = null;     // reference to tick() so step-next-btn can advance scan manually
 
 function clearScan() {
   if (scanAnim) { clearInterval(scanAnim); scanAnim = null; }
+  _scanTick = null;
+  scanStep = 0;
+  scanEvents = [];
   scanState = null;
   scanResults = [];
   renderTree(tree, {});
@@ -1865,10 +1903,14 @@ function clearScan() {
   document.getElementById('efficiency-bar-fill').style.width = '0%';
   document.getElementById('run-scan-btn').disabled = false;
   document.getElementById('run-scan-btn').textContent = '▶ Run Scan';
+  document.getElementById('insert-btn').disabled = false;
+  document.getElementById('bulk-btn').disabled = false;
+  hideStepIndicator();
   setStepMsg('');
   const wrap = document.getElementById('svg-wrap');
   const svgW = parseFloat(document.getElementById('btree-svg').getAttribute('width')) || 0;
-  wrap.scrollTo({ left: Math.max(0, (svgW * zoomLevel - wrap.clientWidth) / 2), top: 0, behavior: 'smooth' });
+  wrap.scrollLeft = Math.max(0, (svgW * zoomLevel - wrap.clientWidth) / 2);
+  wrap.scrollTop  = 0;
 }
 
 function matchesExtraFilter(doc, f) {
@@ -1881,30 +1923,31 @@ function scrollToNode(nodeId) {
   if (!lastPositions) return;
   const pos = lastPositions.get(nodeId);
   if (!pos) return;
-  const wrap = document.getElementById('svg-wrap');
+  const wrap      = document.getElementById('svg-wrap');
   const scaleWrap = document.getElementById('svg-scale-wrap');
-  const z = zoomLevel;
-  const margin = 48;
-  // scaleWrap.offsetLeft gives the CSS auto-margin centering offset within svg-wrap
-  const svgOffset  = scaleWrap.offsetLeft;
-  const nodeLeft   = pos.x * z + svgOffset;
-  const nodeRight  = nodeLeft + pos.w * z;
-  const nodeTop    = pos.y * z;
-  const nodeBottom = nodeTop + NODE_H * z;
-  const visLeft    = wrap.scrollLeft;
-  const visRight   = wrap.scrollLeft + wrap.clientWidth;
-  const visTop     = wrap.scrollTop;
-  const visBottom  = wrap.scrollTop + wrap.clientHeight;
+  const z         = zoomLevel;
+  const margin    = 48;
 
-  let targetLeft = wrap.scrollLeft;
-  let targetTop  = wrap.scrollTop;
-  if (nodeLeft - margin < visLeft)          targetLeft = nodeLeft - margin;
-  else if (nodeRight + margin > visRight)   targetLeft = nodeRight + margin - wrap.clientWidth;
-  if (nodeTop - margin < visTop)            targetTop  = nodeTop - margin;
-  else if (nodeBottom + margin > visBottom) targetTop  = nodeBottom + margin - wrap.clientHeight;
+  // Work entirely in scroll-space coordinates (avoids getBoundingClientRect ambiguity).
+  // renderTree sets scaleWrap.style.width explicitly, so this is reliable.
+  const scaleW  = parseFloat(scaleWrap.style.width) || scaleWrap.offsetWidth;
+  const cW      = wrap.clientWidth;
+  const cH      = wrap.clientHeight;
+  // When the tree is narrower than the viewport it is centred (margin:auto).
+  const offsetX = scaleW < cW ? (cW - scaleW) / 2 : 0;
 
-  if (targetLeft !== wrap.scrollLeft || targetTop !== wrap.scrollTop)
-    wrap.scrollTo({ left: Math.max(0, targetLeft), top: Math.max(0, targetTop), behavior: 'smooth' });
+  const nodeL = offsetX + pos.x * z;
+  const nodeR = nodeL   + pos.w * z;
+  const nodeT = pos.y   * z;           // scaleWrap.offsetTop is always 0
+  const nodeB = nodeT   + NODE_H * z;
+
+  const sl = wrap.scrollLeft;
+  const st = wrap.scrollTop;
+
+  if      (nodeL - margin < sl)       wrap.scrollLeft = Math.max(0, nodeL - margin);
+  else if (nodeR + margin > sl + cW)  wrap.scrollLeft = nodeR + margin - cW;
+  if      (nodeT - margin < st)       wrap.scrollTop  = Math.max(0, nodeT - margin);
+  else if (nodeB + margin > st + cH)  wrap.scrollTop  = nodeB + margin - cH;
 }
 
 function runScan() {
@@ -1940,7 +1983,8 @@ function runScan() {
   };
   scanResults = [];
 
-  let step = 0;
+  scanStep = 0;
+  scanEvents = events;
   const speed = parseInt(document.getElementById('scan-speed-slider').value);
 
   document.getElementById('run-scan-btn').textContent = '⏹ Stop';
@@ -2002,20 +2046,27 @@ function runScan() {
     }
     setStepMsg(scanEventDescription(ev));
     renderTree(tree, scanState);
-    if (ev.type === 'scan-enter' || ev.type === 'scan-key') scrollToNode(ev.nodeId);
+    if (ev.type === 'scan-enter' || ev.type === 'scan-key' || ev.type === 'scan-prune') scrollToNode(ev.nodeId);
   }
 
   function tick() {
-    if (step >= events.length) {
+    if (scanStep >= scanEvents.length) return;
+    const ev = scanEvents[scanStep++];
+    applyEvent(ev);
+    if (ev.type === 'scan-done') {
       clearInterval(scanAnim); scanAnim = null;
+      _scanTick = null;
       document.getElementById('run-scan-btn').textContent = '▶ Run Scan';
       document.getElementById('run-scan-btn').disabled = false;
       document.getElementById('insert-btn').disabled = false;
       document.getElementById('bulk-btn').disabled = false;
-      return;
+      hideStepIndicator();
+    } else if (stepModeActive) {
+      clearInterval(scanAnim); scanAnim = null;
+      showStepIndicator(scanEventDescription(ev));
     }
-    applyEvent(events[step++]);
   }
+  _scanTick = tick;
 
   scanAnim = setInterval(tick, speed);
 }
@@ -2525,8 +2576,18 @@ function initCollapsibles() {
     arrow.textContent = '▾';
     h2.appendChild(arrow);
 
+    // Restore saved state from localStorage (overrides HTML default)
+    const key = section.id ? `btree-section-${section.id}` : null;
+    if (key) {
+      const saved = localStorage.getItem(key);
+      if (saved === 'open') section.classList.remove('collapsed');
+      else if (saved === 'collapsed') section.classList.add('collapsed');
+      // if no saved state, HTML default (collapsed class or lack thereof) stands
+    }
+
     h2.addEventListener('click', () => {
       section.classList.toggle('collapsed');
+      if (key) localStorage.setItem(key, section.classList.contains('collapsed') ? 'collapsed' : 'open');
     });
   });
 }
@@ -2700,6 +2761,75 @@ document.getElementById('export-btn').addEventListener('click', () => {
 });
 
 // ─────────────────────────────────────────────────────────────
+//  Import
+// ─────────────────────────────────────────────────────────────
+document.getElementById('import-file-input').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  this.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    let state;
+    try { state = JSON.parse(e.target.result); } catch { alert('Invalid JSON file.'); return; }
+    if (!Array.isArray(state.indexFields) || state.indexFields.length === 0 ||
+        !Array.isArray(state.documents)) {
+      alert('Not a valid btree export file (missing indexFields or documents).');
+      return;
+    }
+    importState(state);
+  };
+  reader.readAsText(file);
+});
+
+function importState(state) {
+  // 1. Full reset
+  resetIndex();
+
+  // 2. Rebuild index field rows
+  document.getElementById('field-rows').innerHTML = '';
+  const ftMap = {};
+  (state.fieldTypeConfig || []).forEach(c => { ftMap[c.field] = c; });
+  state.indexFields.forEach(name => {
+    const cfg = ftMap[name] || {};
+    addFieldRow(name, cfg.type || 'string');
+    // Restore enum values if present
+    if (cfg.enumVals && cfg.enumVals.length) {
+      const rows = document.querySelectorAll('.field-row');
+      const last = rows[rows.length - 1];
+      const enumInput = last.querySelector('.idx-enum-input');
+      const enumRow   = last.querySelector('.enum-vals-row');
+      if (enumInput) enumInput.value = cfg.enumVals.join(', ');
+      if (enumRow)   enumRow.style.display = '';
+    }
+  });
+
+  // 3. Restore unique checkbox
+  document.getElementById('unique-idx-chk').checked = !!state.uniqueIndex;
+
+  // 4. Create index (sets up tree, UI, del fields, scan UI)
+  createIndex();
+
+  // 5. Silently insert all documents (no animation)
+  const docs = state.documents || [];
+  for (const doc of docs) {
+    if (!doc._id) continue;
+    const events = tree.insert(doc);
+    // Check for duplicate rejection (unique index)
+    if (events.some(ev => ev.type === 'duplicate')) continue;
+    docStore.set(doc._id, { ...doc });
+    insertedDocs.push({ ...doc });
+    addDocToLog(doc, tree.indexFields);
+  }
+
+  manualBulkUsed = true;
+  lockJsonTab();
+  renderTree(tree, {});
+  updateStats();
+  document.getElementById('undo-btn').disabled = insertedDocs.length === 0;
+  setStepMsg(`Imported ${insertedDocs.length} document${insertedDocs.length !== 1 ? 's' : ''}`);
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Undo last insert
 // ─────────────────────────────────────────────────────────────
 document.getElementById('undo-btn').addEventListener('click', () => {
@@ -2848,8 +2978,23 @@ function hideSplitToast() {
 // ─────────────────────────────────────────────────────────────
 document.getElementById('step-mode-chk').addEventListener('change', function () {
   stepModeActive = this.checked;
-  if (!stepModeActive) { hideStepIndicator(); if (animPlaying) anim.play(() => {}); }
+  if (!stepModeActive) {
+    hideStepIndicator();
+    if (_scanTick && !scanAnim) {
+      const speed = parseInt(document.getElementById('scan-speed-slider').value);
+      scanAnim = setInterval(_scanTick, speed);
+    } else if (_delTick && !delAnim) {
+      const speed = parseInt(document.getElementById('del-speed-slider').value);
+      delAnim = setInterval(_delTick, speed);
+    } else if (animPlaying) {
+      anim.play(() => {});
+    }
+  }
 });
+// Always reset step mode on page load — browser form restoration can leave
+// the checkbox visually checked while stepModeActive is false.
+document.getElementById('step-mode-chk').checked = false;
+stepModeActive = false;
 
 function showStepIndicator(msg) {
   const el = document.getElementById('step-indicator');
@@ -2870,18 +3015,48 @@ function startAnimWithStepMode(animCtrl, onDone) {
 }
 
 document.getElementById('step-next-btn').addEventListener('click', () => {
+  if (_scanTick) {
+    _scanTick();
+    return;
+  }
+  if (_delTick) {
+    _delTick();
+    return;
+  }
   if (!animPlaying && !delAnim) return;
-  anim.advance(); // manually fire next step
-  // onStep will re-pause if stepModeActive
-  // if done, the play() onDone callback fires naturally
-  if (anim.done) hideStepIndicator();
+  anim.advance();
+  // When all events are consumed, fire the stored onDone callback so
+  // bulk insert chains to the next document (processBulkQueue(idx+1)).
+  if (anim.done) {
+    hideStepIndicator();
+    const cb = anim._onDone; anim._onDone = null;
+    if (cb) cb();
+  }
 });
 
 document.getElementById('step-stop-btn').addEventListener('click', () => {
+  if (_scanTick) {
+    clearScan();
+    setStepMsg('Scan stopped');
+    return;
+  }
+  if (_delTick) {
+    clearInterval(delAnim); delAnim = null;
+    _delTick = null; delRunning = false;
+    renderTree(tree, {});
+    updateStats();
+    hideStepIndicator();
+    setStepMsg('Delete stopped');
+    return;
+  }
   anim.pause();
+  anim._onDone = null;
   anim.reset();
   animPlaying = false;
+  bulkRunning = false;
   document.getElementById('bulk-btn').disabled = false;
+  document.getElementById('insert-btn').disabled = false;
+  document.getElementById('bulk-progress').style.display = 'none';
   renderTree(tree, {});
   hideStepIndicator();
   hideSplitToast();
@@ -2952,8 +3127,11 @@ const delAnimCtrl = {
 };
 
 function runDelete(key, rid = null) {
-  if (!indexActive || animPlaying || bulkRunning) return;
+  if (!indexActive || animPlaying || bulkRunning || delRunning) return;
   if (delAnim) { clearInterval(delAnim); delAnim = null; }
+
+  // Snapshot tree BEFORE mutation so animation plays over the original state
+  const preDelTree = cloneTree(tree);
 
   const events = tree.delete(key, rid);
   if (events.some(e => e.type === 'del-notfound')) {
@@ -2962,15 +3140,14 @@ function runDelete(key, rid = null) {
   }
 
   delAnimCtrl.load(events);
-  renderTree(tree, {});
-  updateStats();
+  // Show pre-deletion tree as the starting frame
+  renderTree(preDelTree, {});
 
-  // Remove from docStore and insertedDocs after the fact
+  // Bookkeeping: remove from docStore / log immediately
   if (rid) {
     docStore.delete(rid);
     const i = insertedDocs.findIndex(d => d._id === rid);
     if (i !== -1) insertedDocs.splice(i, 1);
-    // Remove from doc log
     document.querySelectorAll('.doc-entry').forEach(el => {
       if (el.querySelector('.doc-oid')?.textContent.includes(shortId(rid))) el.remove();
     });
@@ -2978,21 +3155,33 @@ function runDelete(key, rid = null) {
     document.getElementById('doc-count').textContent = docCount;
   }
 
-  const speed = parseInt(document.getElementById('speed-slider').value);
-  delAnim = setInterval(() => {
-    if (delAnimCtrl.done) {
+  delRunning = true;
+  const speed = parseInt(document.getElementById('del-speed-slider').value);
+
+  function delTick() {
+    if (delAnimCtrl.done) return;
+    const ev = delAnimCtrl.advance();
+    setStepMsg(delEventDescription(ev));
+    // Always render the pre-deletion snapshot with highlights during animation
+    renderTree(preDelTree, delAnimCtrl.state);
+    const sid = ev.nodeId || ev.leftId || null;
+    if (sid) scrollToNode(sid);
+    if (ev.type === 'del-done') {
       clearInterval(delAnim); delAnim = null;
+      _delTick = null; delRunning = false;
+      // Switch to the real post-deletion tree
       renderTree(tree, {});
       updateStats();
       setStepMsg(`Deletion complete — key ${formatKeyLabel(key)} removed`);
-      return;
+      hideStepIndicator();
+    } else if (stepModeActive) {
+      clearInterval(delAnim); delAnim = null;
+      showStepIndicator(delEventDescription(ev));
     }
-    const ev = delAnimCtrl.advance();
-    setStepMsg(delEventDescription(ev));
-    renderTree(tree, delAnimCtrl.state);
-    const sid = ev.nodeId || ev.leftId || null;
-    if (sid) scrollToNode(sid);
-  }, speed);
+  }
+
+  _delTick = delTick;
+  delAnim = setInterval(delTick, speed);
 }
 
 function delEventDescription(ev) {
@@ -3011,7 +3200,7 @@ function delEventDescription(ev) {
 }
 
 document.getElementById('del-btn').addEventListener('click', () => {
-  if (!indexActive || animPlaying || bulkRunning) return;
+  if (!indexActive || animPlaying || bulkRunning || delRunning) return;
   const inputs = document.querySelectorAll('#del-field-rows .del-field-input');
   const key = Array.from(inputs).map(inp => {
     const raw = inp.value.trim();

@@ -29,7 +29,7 @@
   <div id="panel">
 
     <!-- Index Config -->
-    <div class="panel-section">
+    <div class="panel-section" id="index-config-section">
       <h2>Index Configuration</h2>
       <div id="field-rows"></div>
       <div class="btn-row">
@@ -126,7 +126,7 @@
     </div>
 
     <!-- Filter / Sort / Scan -->
-    <div class="panel-section" id="scan-section">
+    <div class="panel-section collapsed" id="scan-section">
       <h2>Filter / Sort Scan</h2>
       <!-- Per-field filter rows injected here by enableScanUI() -->
       <div id="scan-filter-rows">
@@ -172,9 +172,9 @@
       <p style="font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:6px">Enter key field values above, then click Delete. Or click × on a doc in the log.</p>
     </div>
 
-    <!-- Animation Speed -->
-    <div class="panel-section">
-      <h2>Animation Speed</h2>
+    <!-- Animation Controls -->
+    <div class="panel-section collapsed" id="anim-controls-section">
+      <h2>Animation Controls</h2>
       <div class="speed-row">
         <span>Insert</span>
         <input type="range" id="speed-slider" min="10" max="800" value="100" step="10">
@@ -182,8 +182,13 @@
       </div>
       <div class="speed-row">
         <span>Scan</span>
-        <input type="range" id="scan-speed-slider" min="10" max="800" value="100" step="10">
-        <span id="scan-speed-label">100ms</span>
+        <input type="range" id="scan-speed-slider" min="10" max="800" value="500" step="10">
+        <span id="scan-speed-label">500ms</span>
+      </div>
+      <div class="speed-row">
+        <span>Delete</span>
+        <input type="range" id="del-speed-slider" min="10" max="800" value="100" step="10">
+        <span id="del-speed-label">100ms</span>
       </div>
       <div class="step-mode-row">
         <input type="checkbox" id="step-mode-chk">
@@ -192,7 +197,7 @@
     </div>
 
     <!-- Document Log -->
-    <div class="panel-section" style="flex:1">
+    <div class="panel-section collapsed" id="docs-section" style="flex:1">
       <h2>Inserted Documents (<span id="doc-count">0</span>)</h2>
       <div id="doc-list"></div>
     </div>
@@ -212,6 +217,8 @@
       </div>
       <div id="viz-toolbar-right">
         <button class="viz-tool-btn" id="export-btn" title="Export tree state as JSON">⬇ Export</button>
+        <label class="viz-tool-btn" id="import-btn-label" for="import-file-input" title="Import a previously exported tree state">⬆ Import</label>
+        <input type="file" id="import-file-input" accept=".json" style="display:none">
         <button class="viz-tool-btn" id="undo-btn" disabled title="Undo last insert">↩ Undo</button>
         <button class="viz-tool-btn" id="share-btn" title="Copy shareable URL">⇗ Share</button>
       </div>
