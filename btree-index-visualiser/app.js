@@ -3243,3 +3243,48 @@ document.getElementById('del-btn').addEventListener('click', () => {
   });
 })();
 
+// ── Guide Modal ──────────────────────────────────────────────
+(function () {
+  const overlay   = document.getElementById('guide-overlay');
+  const closeBtn  = document.getElementById('guide-close-btn');
+  const prevBtn   = document.getElementById('guide-prev-btn');
+  const nextBtn   = document.getElementById('guide-next-btn');
+  const chNumEl   = document.getElementById('guide-chapter-num');
+  const dots      = Array.from(document.querySelectorAll('.guide-dot'));
+  const TOTAL     = 5;
+  let current     = 1;
+
+  function showChapter(n) {
+    for (let i = 1; i <= TOTAL; i++) {
+      document.getElementById(`guide-ch-${i}`).style.display = i === n ? '' : 'none';
+    }
+    dots.forEach((d, idx) => d.classList.toggle('guide-dot-active', idx + 1 === n));
+    chNumEl.textContent = n;
+    prevBtn.disabled = n === 1;
+    nextBtn.textContent = n === TOTAL ? 'Close' : 'Next →';
+    nextBtn.classList.toggle('guide-nav-primary', n !== TOTAL);
+    current = n;
+    document.getElementById('guide-modal-body').scrollTop = 0;
+  }
+
+  function openGuide() {
+    showChapter(1);
+    overlay.classList.add('open');
+  }
+  function closeGuide() {
+    overlay.classList.remove('open');
+  }
+
+  document.getElementById('guide-btn').addEventListener('click', openGuide);
+  closeBtn.addEventListener('click', closeGuide);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeGuide(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGuide(); });
+
+  prevBtn.addEventListener('click', () => { if (current > 1) showChapter(current - 1); });
+  nextBtn.addEventListener('click', () => {
+    if (current < TOTAL) showChapter(current + 1);
+    else closeGuide();
+  });
+  dots.forEach((d, idx) => d.addEventListener('click', () => showChapter(idx + 1)));
+})();
+

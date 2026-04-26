@@ -12,6 +12,7 @@
 <div id="header">
   <button id="mobile-menu-btn" title="Toggle controls" aria-label="Toggle controls panel">☰</button>
   <h1>B-Tree <span>Index</span> Visualizer</h1>
+  <button id="guide-btn" title="How this works — B-Tree guide">? Guide</button>
   <div id="index-badge">No index created</div>
   <div id="info-bar">
     <span id="step-msg"></span>
@@ -290,6 +291,184 @@
   </div>
   <div id="dt-fields"></div>
   <div class="dt-oid" id="dt-oid"></div>
+</div>
+
+<!-- Guide Modal -->
+<div id="guide-overlay">
+  <div id="guide-modal">
+    <div id="guide-modal-header">
+      <div id="guide-chapter-badge">Chapter <span id="guide-chapter-num">1</span> of 5</div>
+      <button id="guide-close-btn" title="Close guide">&times;</button>
+    </div>
+    <div id="guide-modal-body">
+
+      <!-- Chapter 1: The Problem -->
+      <div class="guide-chapter" id="guide-ch-1">
+        <div class="guide-chapter-icon">&#128269;</div>
+        <h2>The Problem: Finding Data is Hard</h2>
+        <p class="guide-lead">Imagine a library with <strong>1 million books</strong> — but they're all in a giant pile with no order, no catalogue. To find "Harry Potter", you'd have to pick up every single book until you found it. That could take a very long time.</p>
+        <div class="guide-card">
+          <div class="guide-card-title">Databases have the same problem</div>
+          <p>A database might store <strong>millions of user records</strong>. When you search for a specific user, without any index the database has to read every single row — one by one — until it finds a match. This is called a <em>full table scan</em> and it gets painfully slow as data grows.</p>
+        </div>
+        <div class="guide-analogy">
+          <div class="guide-analogy-label">Real world analogy</div>
+          <p>Searching a database without an index is like trying to find a name in a phone book that isn't sorted — you read every entry from page 1.</p>
+        </div>
+        <div class="guide-stat-row">
+          <div class="guide-stat">
+            <div class="guide-stat-num guide-stat-bad">1,000,000</div>
+            <div class="guide-stat-label">rows checked — no index</div>
+          </div>
+          <div class="guide-stat-arrow">&#8594;</div>
+          <div class="guide-stat">
+            <div class="guide-stat-num guide-stat-good">~20</div>
+            <div class="guide-stat-label">checks needed — with B-Tree</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chapter 2: The B-Tree Solution -->
+      <div class="guide-chapter" id="guide-ch-2" style="display:none">
+        <div class="guide-chapter-icon">&#127981;</div>
+        <h2>The Solution: A Sorted, Layered Index</h2>
+        <p class="guide-lead">A B-Tree is like a well-organised library with <strong>section signs, shelf labels, and alphabetical books</strong>. Instead of checking every book, you follow the signs to jump straight to the right area.</p>
+        <div class="guide-card">
+          <div class="guide-card-title">How the tree is structured</div>
+          <p>The tree has <strong>levels</strong>. At the top is the <em>root</em> — it holds a few key values that act as signposts. Each signpost says "go left for smaller values, go right for larger ones." You follow pointers down until you reach a <em>leaf node</em> — the bottom level — which holds the actual data pointers.</p>
+        </div>
+        <div class="guide-diagram">
+          <div class="gd-row">
+            <div class="gd-node gd-internal">Root<br><span class="gd-keys">[ 40 | 80 ]</span></div>
+          </div>
+          <div class="gd-arrows">
+            <span class="gd-arrow-line"></span>
+            <span class="gd-arrow-line"></span>
+            <span class="gd-arrow-line"></span>
+          </div>
+          <div class="gd-row">
+            <div class="gd-node gd-internal">[ 10 | 25 ]</div>
+            <div class="gd-node gd-internal">[ 55 | 65 ]</div>
+            <div class="gd-node gd-internal">[ 90 | 95 ]</div>
+          </div>
+          <div class="gd-label-row">
+            <span class="gd-label gd-lbl-leaf">Leaf nodes (actual data)</span>
+          </div>
+        </div>
+        <div class="guide-analogy">
+          <div class="guide-analogy-label">Library analogy</div>
+          <p>Root = the main hall signs (Fiction / Non-Fiction). Internal nodes = aisle signs (A–F, G–M, N–Z). Leaf nodes = the actual book shelves where you find your book.</p>
+        </div>
+      </div>
+
+      <!-- Chapter 3: Insertions & Splits -->
+      <div class="guide-chapter" id="guide-ch-3" style="display:none">
+        <div class="guide-chapter-icon">&#9889;</div>
+        <h2>Insertions &amp; Node Splits</h2>
+        <p class="guide-lead">Every new document you insert has its key placed into the tree — always keeping everything <strong>sorted</strong>. But what happens when a node gets too full?</p>
+        <div class="guide-card">
+          <div class="guide-card-title">Node capacity</div>
+          <p>In this visualizer, each node can hold a <strong>maximum of 3 keys</strong> (configurable by the degree <em>t=2</em>). When a 4th key tries to fit in, the node <strong>splits in two</strong> — the middle key is promoted up to the parent node to act as the new divider.</p>
+        </div>
+        <div class="guide-steps">
+          <div class="guide-step">
+            <div class="guide-step-num">1</div>
+            <div class="guide-step-text"><strong>Walk down the tree</strong> following the path where the new key belongs (highlighted in yellow)</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">2</div>
+            <div class="guide-step-text"><strong>If a node is full</strong>, split it before descending — the middle key moves up (shown in red then violet)</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">3</div>
+            <div class="guide-step-text"><strong>Insert in the leaf</strong> — the key lands in its sorted position (violet glow)</div>
+          </div>
+        </div>
+        <div class="guide-analogy">
+          <div class="guide-analogy-label">Split analogy</div>
+          <p>A bookshelf gets full. You split it into two shelves and put a new sign in the aisle saying which shelf has which range of books. The aisle sign is the "promoted key."</p>
+        </div>
+      </div>
+
+      <!-- Chapter 4: Index Scans -->
+      <div class="guide-chapter" id="guide-ch-4" style="display:none">
+        <div class="guide-chapter-icon">&#128200;</div>
+        <h2>Index Scans &amp; Range Queries</h2>
+        <p class="guide-lead">The real power of a B-Tree index is <strong>range queries</strong> — finding all documents where age &gt; 30, or names starting with "A". The tree lets the database skip huge portions of data instantly.</p>
+        <div class="guide-card">
+          <div class="guide-card-title">How a range scan works</div>
+          <p>The database reads the internal nodes (signposts) to identify which subtrees can possibly contain matching values. Subtrees that are <strong>entirely out of range are pruned</strong> — skipped completely. Only the relevant leaf nodes are visited to collect results.</p>
+        </div>
+        <div class="guide-legend-explain">
+          <div class="guide-legend-row">
+            <div class="guide-legend-swatch" style="background:#8B5CF6;border-color:#8B5CF6"></div>
+            <span><strong>Violet</strong> — matched: this key satisfies your filter</span>
+          </div>
+          <div class="guide-legend-row">
+            <div class="guide-legend-swatch" style="background:#1C1F38;opacity:0.4;border-color:#555"></div>
+            <span><strong>Faded</strong> — missed: key was visited but didn't match</span>
+          </div>
+          <div class="guide-legend-row">
+            <div class="guide-legend-swatch" style="background:#0a0a0a;opacity:0.25;border-color:#333"></div>
+            <span><strong>Greyed out</strong> — pruned: entire subtree skipped by the index</span>
+          </div>
+          <div class="guide-legend-row">
+            <div class="guide-legend-swatch" style="border-color:#00E5FF;box-shadow:0 0 4px #00E5FF"></div>
+            <span><strong>Cyan cursor</strong> — the current position being evaluated</span>
+          </div>
+        </div>
+        <div class="guide-analogy">
+          <div class="guide-analogy-label">Database query analogy</div>
+          <p><code style="color:var(--accent)">SELECT * FROM users WHERE age &gt; 30</code> — instead of reading all users, the B-Tree jumps directly to age=30 and reads forward. Everything below 30 is pruned.</p>
+        </div>
+      </div>
+
+      <!-- Chapter 5: Using this App -->
+      <div class="guide-chapter" id="guide-ch-5" style="display:none">
+        <div class="guide-chapter-icon">&#127918;</div>
+        <h2>How to Use This App</h2>
+        <p class="guide-lead">Follow these steps to see the B-Tree come to life:</p>
+        <div class="guide-steps">
+          <div class="guide-step">
+            <div class="guide-step-num">1</div>
+            <div class="guide-step-text"><strong>Configure the Index</strong> — in the left panel, name your field (e.g. <em>age</em>), set its type to <em>number</em>, then click <em>Create Index</em>.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">2</div>
+            <div class="guide-step-text"><strong>Insert Documents</strong> — use <em>Manual</em> to type values one at a time, or <em>Bulk</em> to auto-generate many at once. Watch the tree grow and split.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">3</div>
+            <div class="guide-step-text"><strong>Try a Scan</strong> — open <em>Filter / Sort Scan</em>, set a filter like <em>age &gt; 30</em>, and click <em>Run Scan</em>. See how the tree prunes irrelevant subtrees.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">4</div>
+            <div class="guide-step-text"><strong>Step-by-step mode</strong> — enable <em>Step-by-step mode</em> in Animation Controls to pause after each event and read what's happening.</div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-step-num">5</div>
+            <div class="guide-step-text"><strong>Try compound indexes</strong> — click <em>+ Field</em> to add a second field (e.g. <em>name</em>). This creates a composite index — powerful for multi-field queries.</div>
+          </div>
+        </div>
+        <div class="guide-card" style="margin-top:16px">
+          <div class="guide-card-title">Pro tip — try the example datasets</div>
+          <p>Switch to the <strong>JSON</strong> tab and pick <em>Employees</em>, <em>Products</em>, or <em>Orders</em> from the dropdown. This loads 20 realistic documents instantly so you can explore without typing anything.</p>
+        </div>
+      </div>
+
+    </div><!-- /guide-modal-body -->
+    <div id="guide-modal-footer">
+      <button class="guide-nav-btn" id="guide-prev-btn" disabled>&#8592; Previous</button>
+      <div id="guide-dots">
+        <span class="guide-dot guide-dot-active" data-ch="1"></span>
+        <span class="guide-dot" data-ch="2"></span>
+        <span class="guide-dot" data-ch="3"></span>
+        <span class="guide-dot" data-ch="4"></span>
+        <span class="guide-dot" data-ch="5"></span>
+      </div>
+      <button class="guide-nav-btn guide-nav-primary" id="guide-next-btn">Next &#8594;</button>
+    </div>
+  </div>
 </div>
 
 <script src="app.js"></script>
