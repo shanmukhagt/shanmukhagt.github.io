@@ -577,6 +577,36 @@ body {
   to   { opacity: 0.25; }
 }
 
+/* ── Insert tabs ────────────────────────────────────────── */
+.insert-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 3px;
+}
+.itab {
+  flex: 1;
+  padding: 5px 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: var(--font);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  transition: all 0.15s;
+  text-align: center;
+}
+.itab.active {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+.itab:hover:not(.active) { color: var(--text); }
+
 /* ── Collapsible panel sections ─────────────────────────── */
 .panel-section h2 {
   display: flex;
@@ -782,46 +812,75 @@ body {
     <div class="panel-section" id="insert-section">
       <h2>Insert Document</h2>
 
-      <!-- JSON / Example loader -->
-      <div id="json-upload-wrap" style="margin-bottom:10px">
-        <div style="display:flex;gap:6px;margin-bottom:5px">
-          <label class="btn btn-secondary" for="json-file-input" style="cursor:pointer;flex:1;text-align:center;justify-content:center">⬆ Upload JSON</label>
-          <select id="example-select" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
-            <option value="">Load example…</option>
-            <option value="employees">Employees (20)</option>
-            <option value="products">Products (20)</option>
-            <option value="orders">Orders (20)</option>
-          </select>
+      <!-- Tab bar -->
+      <div class="insert-tabs">
+        <button class="itab active" data-tab="manual">Manual</button>
+        <button class="itab" data-tab="bulk">Bulk</button>
+        <button class="itab" data-tab="json">JSON</button>
+      </div>
+
+      <!-- ① Manual tab -->
+      <div class="itab-content" id="itab-manual">
+        <div id="oid-preview" data-oid="" style="display:none"></div>
+        <div id="doc-fields">
+          <p style="font-size:11px;color:var(--text-dim)">Create an index to enable manual insert.</p>
         </div>
-        <input type="file" id="json-file-input" accept=".json" style="display:none">
-        <div id="json-status" style="display:none;padding:5px 8px;background:var(--surface2);border:1px solid var(--accent-dim);border-radius:4px;font-size:11px;line-height:1.4">
-          <span id="json-status-text" style="color:var(--accent)"></span>
-          <button id="json-clear-btn" style="float:right;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0;line-height:1" title="Clear loaded data">×</button>
+        <div id="doc-extra-section" style="margin-top:8px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)">Extra Fields <span style="color:#555;font-size:9px">(not indexed)</span></span>
+            <button class="btn btn-secondary" id="add-extra-btn" style="padding:2px 8px;font-size:11px">+ Add</button>
+          </div>
+          <div id="extra-field-rows"></div>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn btn-primary" id="insert-btn" disabled>Insert Document</button>
         </div>
       </div>
-      <div style="border-top:1px solid var(--border);margin-bottom:8px"></div>
 
-      <div id="oid-preview" data-oid="" style="display:none"></div>
-      <div id="doc-fields"></div>
-      <!-- Extra (non-indexed) fields -->
-      <div id="doc-extra-section" style="margin-top:8px;display:none">
+      <!-- ② Bulk tab -->
+      <div class="itab-content" id="itab-bulk" style="display:none">
+        <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5">Auto-generates random values based on index field types.</p>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <label style="font-size:11px;color:var(--text-dim);white-space:nowrap">Count</label>
+          <input type="number" id="bulk-count-input" value="15" min="1" max="100"
+            style="width:64px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:var(--font);font-size:12px;outline:none">
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
           <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)">Extra Fields <span style="color:#555;font-size:9px">(not indexed)</span></span>
-          <button class="btn btn-secondary" id="add-extra-btn" style="padding:2px 8px;font-size:11px">+ Add</button>
+          <button class="btn btn-secondary" id="add-bulk-extra-btn" style="padding:2px 8px;font-size:11px">+ Add</button>
         </div>
-        <div id="extra-field-rows"></div>
-      </div>
-      <div class="btn-row" style="margin-top:8px">
-        <button class="btn btn-primary" id="insert-btn" disabled>Insert Document</button>
-        <button class="btn btn-secondary" id="bulk-btn" disabled title="Insert 15 random documents one by one">⚡ Bulk (15)</button>
-      </div>
-      <div id="bulk-progress" style="display:none;margin-top:8px">
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:4px">
-          <span id="bulk-label">Inserting…</span>
-          <span id="bulk-counter">0 / 15</span>
+        <div id="bulk-extra-rows"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn btn-secondary" id="bulk-btn" disabled>⚡ Bulk Insert</button>
         </div>
-        <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
-          <div id="bulk-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width 0.2s ease"></div>
+        <div id="bulk-progress" style="display:none;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:4px">
+            <span id="bulk-label">Inserting…</span>
+            <span id="bulk-counter">0 / 15</span>
+          </div>
+          <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+            <div id="bulk-bar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width 0.2s ease"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ JSON tab -->
+      <div class="itab-content" id="itab-json" style="display:none">
+        <div id="json-upload-wrap">
+          <div style="display:flex;gap:6px;margin-bottom:5px">
+            <label class="btn btn-secondary" for="json-file-input" style="cursor:pointer;flex:1;text-align:center;justify-content:center">⬆ Upload JSON</label>
+            <select id="example-select" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-family:var(--font);font-size:12px;outline:none;cursor:pointer">
+              <option value="">Load example…</option>
+              <option value="employees">Employees (20)</option>
+              <option value="products">Products (20)</option>
+              <option value="orders">Orders (20)</option>
+            </select>
+          </div>
+          <input type="file" id="json-file-input" accept=".json" style="display:none">
+          <div id="json-status" style="display:none;padding:5px 8px;background:var(--surface2);border:1px solid var(--accent-dim);border-radius:4px;font-size:11px;line-height:1.4">
+            <span id="json-status-text" style="color:var(--accent)"></span>
+            <button id="json-clear-btn" style="float:right;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0;line-height:1" title="Clear loaded data">×</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1718,8 +1777,40 @@ document.getElementById('add-extra-btn').addEventListener('click', () => {
   row.querySelector('.ef-key').focus();
 });
 
+function buildBulkExtraFieldRow() {
+  const typeOpts = FIELD_TYPES.map(t =>
+    `<option value="${t.value}">${t.label}</option>`
+  ).join('');
+  const row = document.createElement('div');
+  row.className = 'extra-field-row';
+  row.innerHTML = `
+    <div class="ef-controls">
+      <input type="text" class="ef-key" placeholder="field name">
+      <select class="ef-type">${typeOpts}</select>
+      <button class="remove-ef">×</button>
+    </div>
+  `;
+  row.querySelector('.remove-ef').addEventListener('click', () => row.remove());
+  return row;
+}
+
+document.getElementById('add-bulk-extra-btn').addEventListener('click', () => {
+  const container = document.getElementById('bulk-extra-rows');
+  const row = buildBulkExtraFieldRow();
+  container.appendChild(row);
+  row.querySelector('.ef-key').focus();
+});
+
 function getExtraFieldConfigs() {
-  return Array.from(document.querySelectorAll('.extra-field-row')).map(row => {
+  return Array.from(document.querySelectorAll('#extra-field-rows .extra-field-row')).map(row => {
+    const name = row.querySelector('.ef-key').value.trim();
+    const type = row.querySelector('.ef-type')?.value || 'string';
+    return { name, type, enumVals: [] };
+  }).filter(c => c.name);
+}
+
+function getBulkExtraFieldConfigs() {
+  return Array.from(document.querySelectorAll('#bulk-extra-rows .extra-field-row')).map(row => {
     const name = row.querySelector('.ef-key').value.trim();
     const type = row.querySelector('.ef-type')?.value || 'string';
     return { name, type, enumVals: [] };
@@ -1804,7 +1895,31 @@ function setJsonStatus(msg, isError = false) {
   text.textContent = msg;
 }
 
+function lockJsonTab() {
+  const sel = document.getElementById('example-select');
+  const lbl = document.querySelector('label[for="json-file-input"]');
+  sel.disabled = true;
+  sel.title = 'Reset index to load new data';
+  if (lbl) { lbl.style.opacity = '0.4'; lbl.style.pointerEvents = 'none'; lbl.title = 'Reset index to load new data'; }
+  setJsonStatus('Tree already has data. Reset index to load new data.');
+}
+
+function unlockJsonTab() {
+  const sel = document.getElementById('example-select');
+  const lbl = document.querySelector('label[for="json-file-input"]');
+  sel.disabled = false;
+  sel.title = '';
+  if (lbl) { lbl.style.opacity = ''; lbl.style.pointerEvents = ''; lbl.title = ''; }
+}
+
 function loadJsonDocs(raw) {
+  // Block if tree already has documents
+  if (indexActive && tree.countKeys() > 0) {
+    lockJsonTab();
+    document.getElementById('example-select').value = '';
+    return;
+  }
+
   // Normalise to array
   let docs = Array.isArray(raw) ? raw : [raw];
   docs = docs.filter(d => d && typeof d === 'object' && !Array.isArray(d));
@@ -1908,6 +2023,7 @@ function resetIndex() {
   document.getElementById('example-select').value = '';
   document.getElementById('json-file-input').value = '';
   setJsonStatus('');
+  unlockJsonTab();
   const g = document.getElementById('tree-root-g');
   g.innerHTML = '';
   document.getElementById('empty-state').style.display = 'flex';
@@ -2018,6 +2134,8 @@ document.getElementById('insert-btn').addEventListener('click', () => {
   document.querySelectorAll('.doc-field-input').forEach(i => i.value = '');
   clearExtraFieldRows();
   genOid();
+
+  lockJsonTab();
 
   // Render tree in final state, then rewind anim display
   renderTree(tree, {});
@@ -2252,14 +2370,15 @@ function getExtraFieldNames() {
   return getExtraFieldConfigs().map(c => c.name);
 }
 
-function genDummyDoc() {
+function genDummyDoc(extraConfigs = null) {
   const doc = { _id: genObjectId() };
   // Indexed fields — use declared type config
   tree.indexFields.forEach(f => {
     doc[f] = genDummyValue(f, fieldTypeConfig.get(f));
   });
-  // Extra fields — use their declared type from the form
-  getExtraFieldConfigs().forEach(({ name, type, enumVals }) => {
+  // Extra fields — use passed configs or fall back to manual tab's form
+  const extras = extraConfigs !== null ? extraConfigs : getExtraFieldConfigs();
+  extras.forEach(({ name, type, enumVals }) => {
     doc[name] = genDummyValue(name, { type, enumVals });
   });
   return doc;
@@ -2276,7 +2395,9 @@ function startBulkInsert() {
   if (!indexActive || bulkRunning || animPlaying) return;
 
   // Generate all docs upfront (deduplicated keys where possible)
-  bulkQueue = Array.from({ length: BULK_COUNT }, genDummyDoc);
+  const count = Math.min(100, Math.max(1, parseInt(document.getElementById('bulk-count-input').value) || 15));
+  const bulkExtras = getBulkExtraFieldConfigs();
+  bulkQueue = Array.from({ length: count }, () => genDummyDoc(bulkExtras));
   bulkRunning = true;
 
   document.getElementById('bulk-btn').disabled = true;
@@ -2299,6 +2420,7 @@ function processBulkQueue(idx) {
     document.getElementById('bulk-progress').style.display = 'none';
     document.getElementById('bulk-label').textContent = 'Inserting…';
     setStepMsg(`✓ Bulk insert complete — ${total} documents added`);
+    lockJsonTab();
     renderTree(tree, {});
     updateStats();
     return;
@@ -3207,6 +3329,15 @@ const docStore = new Map(); // rid (ObjectId string) → full doc object
 // ─────────────────────────────────────────────────────────────
 addFieldRow('name');
 initCollapsibles();
+
+document.querySelectorAll('.itab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.itab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.itab-content').forEach(c => c.style.display = 'none');
+    tab.classList.add('active');
+    document.getElementById('itab-' + tab.dataset.tab).style.display = '';
+  });
+});
 document.getElementById('empty-state').style.display = 'flex';
 
 // Pre-populate with a demo hint
